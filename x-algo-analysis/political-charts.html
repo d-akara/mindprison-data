@@ -1,0 +1,2426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>X-Algo Analysis &middot; Political charts</title>
+<style>
+/* ============================================================
+   Theme tokens - ported from extension src/shared/styles/theme.ts
+   (+ political red for Republicans)
+   ============================================================ */
+:root {
+  --x-color-accent: #1d9bf0;
+  --x-color-muted: #71767b;
+  --x-color-text: #eff3f4;
+  --x-color-border: #2f3336;
+  --x-color-bg: #000;
+  --x-color-dim: #8b98a5;
+  --x-color-secondary: #536471;
+  --x-color-bg-raised: #161616;
+  --x-color-chart-0: #6e767d;
+  --x-color-chart-1: #1d9bf0;
+  --x-color-chart-2: #00ba7c;
+  --x-color-chart-3: #f91880;
+  --x-color-chart-4: #ffd400;
+  --x-color-chart-5: #794bc4;
+  --x-color-chart-6: #ff7a00;
+  --x-color-red: #e0245e;
+}
+:root[data-theme="light"] {
+  --x-color-accent: #1d9bf0;
+  --x-color-muted: #536471;
+  --x-color-text: #0f1419;
+  --x-color-border: #e1e8ed;
+  --x-color-bg: #ffffff;
+  --x-color-dim: #8b98a5;
+  --x-color-secondary: #8b98a5;
+  --x-color-bg-raised: #f5f5f5;
+  --x-color-chart-0: #536471;
+  --x-color-chart-1: #1d9bf0;
+  --x-color-chart-2: #009966;
+  --x-color-chart-3: #e01570;
+  --x-color-chart-4: #e6bf00;
+  --x-color-chart-5: #6a3db5;
+  --x-color-chart-6: #e66e00;
+  --x-color-red: #d02054;
+}
+
+/* ============================================================
+   Base tokens - ported from extension src/content.css :root
+   ============================================================ */
+:root {
+  --x-font-twitter: TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --x-text-xs: 11px;
+  --x-text-sm: 12px;
+  --x-text-md: 13px;
+  --x-text-base: 14px;
+  --x-text-lg: 15px;
+  --x-text-xl: 16px;
+  --x-text-2xl: 18px;
+  --x-text-3xl: 20px;
+  --x-radius-sm: 4px;
+  --x-radius-md: 8px;
+  --x-radius-lg: 16px;
+  --x-radius-pill: 9999px;
+  --x-radius-round: 50%;
+  --x-transition-fast: 150ms ease;
+  --x-transition-normal: 200ms ease;
+  --x-transition-slow: 300ms ease;
+}
+
+/* ============================================================
+   Page shell (standalone page chrome)
+   ============================================================ */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--x-color-bg);
+  color: var(--x-color-text);
+  font-family: var(--x-font-twitter);
+  font-size: var(--x-text-base);
+  min-height: 100vh;
+}
+.page {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 28px 20px 60px;
+}
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.page-title {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+.page-sub {
+  font-size: 13px;
+  color: var(--x-color-dim);
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+.page-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--x-color-dim);
+  border: 1px solid var(--x-color-border);
+  background: var(--x-color-bg-raised);
+  border-radius: var(--x-radius-pill);
+  padding: 4px 12px;
+}
+.page-btn {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border: 1px solid var(--x-color-border);
+  border-radius: var(--x-radius-md);
+  background: var(--x-color-bg-raised);
+  color: var(--x-color-text);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.page-btn:hover {
+  border-color: var(--x-color-accent);
+}
+.rule {
+  border: none;
+  border-top: 1px solid var(--x-color-border);
+  margin: 20px 0 24px;
+}
+.empty-state {
+  background: var(--x-color-bg-raised);
+  border: 1px solid var(--x-color-border);
+  border-radius: var(--x-radius-lg);
+  padding: 48px 32px;
+  text-align: center;
+}
+.empty-state h2 { font-size: 17px; margin: 0 0 8px; }
+.empty-state p { font-size: 13px; color: var(--x-color-dim); line-height: 1.6; margin: 0 auto 20px; max-width: 480px; }
+.empty-state code {
+  background: var(--x-color-bg);
+  border: 1px solid var(--x-color-border);
+  border-radius: var(--x-radius-sm);
+  padding: 1px 6px;
+  font-size: 12px;
+}
+.file-badge { margin-bottom: 20px; }
+
+/* ============================================================
+   Metrics styles - ported verbatim from extension src/content.css
+   ============================================================ */
+.xfeedfilter-metrics-cards {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.xfeedfilter-metrics-card {
+  flex: 1;
+  min-width: 110px;
+  background: var(--x-color-bg-raised);
+  border: 1px solid var(--x-color-border);
+  border-radius: var(--x-radius-md);
+  padding: 16px;
+  text-align: center;
+}
+.xfeedfilter-metrics-card-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--x-color-accent);
+}
+.xfeedfilter-metrics-card-label {
+  font-size: 12px;
+  color: var(--x-color-muted);
+  margin-top: 4px;
+}
+.xfeedfilter-metrics-section {
+  margin-bottom: 28px;
+}
+.xfeedfilter-metrics-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 2px;
+  color: var(--x-color-text);
+}
+.xfeedfilter-metrics-section-desc {
+  font-size: 12px;
+  color: var(--x-color-muted);
+  margin: 0 0 12px;
+}
+.xfeedfilter-metrics-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--x-radius-round);
+  flex-shrink: 0;
+}
+.xfeedfilter-metrics-scatter-wrap {
+  position: relative;
+  margin-bottom: 8px;
+}
+.xfeedfilter-metrics-scatter {
+  max-width: 550px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 500 / 260;
+  display: block;
+  margin: 0 auto;
+  overflow: visible;
+}
+.xfeedfilter-metrics-scatter-grid {
+  stroke: var(--x-color-border);
+  stroke-opacity: 0.25;
+  stroke-width: 1;
+  pointer-events: none;
+}
+.xfeedfilter-metrics-scatter-guide {
+  stroke: var(--x-color-dim);
+  stroke-opacity: 0.45;
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+.xfeedfilter-metrics-scatter-guide-label {
+  fill: var(--x-color-dim);
+  font-size: 10px;
+  dominant-baseline: hanging;
+}
+.xfeedfilter-metrics-scatter-x-label {
+  fill: var(--x-color-dim);
+  font-size: 10px;
+  text-anchor: middle;
+}
+.xfeedfilter-metrics-scatter-y-label {
+  fill: var(--x-color-dim);
+  font-size: 10px;
+  text-anchor: end;
+  dominant-baseline: central;
+}
+.xfeedfilter-metrics-scatter-axis-title {
+  fill: var(--x-color-dim);
+  font-size: 10px;
+  text-anchor: middle;
+}
+.xfeedfilter-metrics-scatter-point {
+  stroke: color-mix(in srgb, var(--x-color-bg-raised) 80%, transparent);
+  stroke-width: 1;
+  cursor: pointer;
+}
+.xfeedfilter-metrics-scatter-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--x-color-dim);
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.xfeedfilter-metrics-scatter-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+.xf-scatter-tooltip {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  background: var(--x-color-bg-raised);
+  border: 1px solid var(--x-color-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.xf-scatter-tooltip-header {
+  font-weight: 700;
+  color: var(--x-color-dim);
+  margin-bottom: 4px;
+}
+.xf-scatter-tooltip-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+}
+.xf-scatter-tooltip-label {
+  color: var(--x-color-dim);
+}
+.xf-scatter-tooltip-value {
+  color: var(--x-color-accent);
+  font-weight: 600;
+  text-align: right;
+}
+.xf-scatter-tooltip-divider {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--x-color-border);
+}
+.xfeedfilter-metrics-toggle-group {
+  display: flex;
+  gap: 0;
+  margin-bottom: 8px;
+}
+.xfeedfilter-metrics-toggle-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.xfeedfilter-metrics-toggle-row .xfeedfilter-metrics-toggle-group {
+  margin-bottom: 0;
+}
+.xfeedfilter-metrics-scatter-point-label {
+  fill: var(--x-color-dim);
+  font-size: 10px;
+  pointer-events: none;
+  user-select: none;
+}
+.xfeedfilter-metrics-scatter-point-label--pinned {
+  fill: var(--x-color-text);
+  font-weight: 600;
+}
+.xfeedfilter-metrics-scatter-leader {
+  stroke: var(--x-color-dim);
+  stroke-opacity: 0.5;
+  stroke-width: 1;
+  pointer-events: none;
+}
+.xfeedfilter-metrics-scatter.xf-scale-svg--expanded {
+  max-width: 1100px;
+}
+.xfeedfilter-metrics-scatter.xf-scale-svg--expanded .xfeedfilter-metrics-scatter-point-label,
+.xfeedfilter-metrics-scatter.xf-scale-svg--expanded .xfeedfilter-metrics-scatter-x-label,
+.xfeedfilter-metrics-scatter.xf-scale-svg--expanded .xfeedfilter-metrics-scatter-y-label,
+.xfeedfilter-metrics-scatter.xf-scale-svg--expanded .xfeedfilter-metrics-scatter-guide-label,
+.xfeedfilter-metrics-scatter.xf-scale-svg--expanded .xfeedfilter-metrics-scatter-axis-title {
+  font-size: 8px;
+}
+body.xf-wide .page {
+  max-width: 1160px;
+}
+.xf-toggle-btn {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 14px;
+  border: 1px solid var(--x-color-border);
+  background: var(--x-color-bg);
+  color: var(--x-color-dim);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.xf-toggle-btn:first-child {
+  border-radius: 6px 0 0 6px;
+}
+.xf-toggle-btn:last-child {
+  border-radius: 0 6px 6px 0;
+}
+.xf-toggle-btn:hover {
+  color: var(--x-color-text);
+}
+.xf-toggle-btn--active {
+  background: color-mix(in srgb, var(--x-color-accent) 15%, transparent);
+  color: var(--x-color-accent);
+  border-color: color-mix(in srgb, var(--x-color-accent) 40%, var(--x-color-border));
+}
+.xfeedfilter-metrics-muted { color: var(--x-color-dim); font-weight: 400; }
+.xfeedfilter-metrics-footnote { color: var(--x-color-dim); font-size: 12px; margin-top: 10px; line-height: 1.45; }
+.xfeedfilter-metrics-subtitle { font-size: 13px; font-weight: 650; margin: 14px 0 8px; color: var(--x-color-text); }
+.xfeedfilter-metrics-chart-defs {
+  margin-top: 10px;
+}
+.xfeedfilter-metrics-chart-defs summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--x-color-muted);
+  user-select: none;
+}
+.xfeedfilter-metrics-chart-defs[open] summary {
+  margin-bottom: 6px;
+}
+.xfeedfilter-metrics-table {
+  font-size: 13px;
+}
+.xfeedfilter-metrics-table-header {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--x-color-border);
+  font-weight: 600;
+  color: var(--x-color-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.xfeedfilter-metrics-table-header > span,
+.xfeedfilter-metrics-table-row > span {
+  flex: 1;
+}
+.xfeedfilter-metrics-table-header > span:first-child,
+.xfeedfilter-metrics-table-row > span:first-child {
+  flex: 2;
+}
+.xfeedfilter-metrics-table-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--x-color-border);
+  align-items: center;
+}
+.xfeedfilter-metrics-table-row:last-child {
+  border-bottom: none;
+}
+.page-footer {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--x-color-border);
+  font-size: 12px;
+  color: var(--x-color-dim);
+  line-height: 1.6;
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">X-Algo Analysis &middot; Political charts</h1>
+      <p class="page-sub">US Senate cohort, variation of the extension&rsquo;s <strong>Reach/Impact vs audience size</strong> chart, colored by political party instead of follower band. Metric calculations are ported 1:1 from <code>x-browser-extension</code>.</p>
+    </div>
+    <div class="page-actions">
+      <button class="page-btn" id="btn-theme" title="Toggle light/dark">Theme</button>
+      <button class="page-btn" id="btn-metrics">Load metrics&hellip;</button>
+      <button class="page-btn" id="btn-meta">Load metadata&hellip;</button>
+    </div>
+  </div>
+  <hr class="rule">
+  <div id="app"><div class="empty-state" id="empty-state"></div></div>
+  <div class="page-footer" id="page-footer" style="display:none"></div>
+</div>
+
+<script>
+"use strict";
+
+/* ==========================================================================
+   PORTED DATA PIPELINE (identical to metrics-charts.html)
+   ========================================================================== */
+
+/* ---- src/shared/messages.ts ---- */
+const PF = { IsQuote: 1, IsArticle: 2, HasPhoto: 4, HasVideo: 8, HasURL: 16, HasMention: 32 };
+
+/* ---- src/shared/profile-stats-utils.ts ---- */
+const SNOWFLAKE_EPOCH = 1288834974657;
+
+function postIdToTimestamp(id) {
+  try {
+    return Number((BigInt(id) >> 22n) + BigInt(SNOWFLAKE_EPOCH));
+  } catch {
+    return 0;
+  }
+}
+
+function median(values) {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function mean(vals) {
+  if (vals.length === 0) return 0;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
+function percentile(vals, p) {
+  if (vals.length === 0) return 0;
+  const s = [...vals].sort((a, b) => a - b);
+  const idx = (p / 100) * (s.length - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return s[lo];
+  return s[lo] * (hi - idx) + s[hi] * (idx - lo);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function fmtUtcDate(ms) {
+  return new Date(ms).toISOString().slice(0, 16).replace("T", " ") + " UTC";
+}
+
+function collectionPeriodNote(profiles) {
+  const t = profiles.map(p => p.completedAt).filter(v => typeof v === "number" && v > 0);
+  if (t.length < 2) return "";
+  return ` <span class="xfeedfilter-metrics-muted">\u00b7</span> collected ${fmtUtcDate(Math.min(...t))} \u2013 ${fmtUtcDate(Math.max(...t))}`;
+}
+
+function clamp(n, lo, hi) {
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function coeffVar(vals) {
+  if (vals.length === 0) return 0;
+  const m = mean(vals);
+  if (m <= 0) return 0;
+  const v = vals.reduce((s, x) => s + (x - m) ** 2, 0) / vals.length;
+  return Math.sqrt(v) / m;
+}
+
+function topShare(vals, fraction) {
+  if (vals.length === 0) return 0;
+  const sorted = [...vals].sort((a, b) => a - b);
+  const cut = Math.floor(vals.length * (1 - fraction));
+  const top = sorted.slice(cut).reduce((a, b) => a + b, 0);
+  const all = sorted.reduce((a, b) => a + b, 0);
+  return all > 0 ? (top / all) * 100 : 0;
+}
+
+function pctWhere(vals, pred) {
+  if (vals.length === 0) return 0;
+  let c = 0;
+  for (const v of vals) if (pred(v)) c++;
+  return (c / vals.length) * 100;
+}
+
+function pacing(timestamps, n) {
+  const times = timestamps.filter(t => t > 0);
+  const spanMs = times.length > 1 ? Math.max(...times) - Math.min(...times) : 0;
+  const spanDays = spanMs > 0 ? spanMs / 86_400_000 : 0;
+  return { spanDays, postsPerDay: n / (spanDays > 0 ? spanDays : 1) };
+}
+
+function meanRatio(num, den, scale = 100) {
+  return mean(ratioSeries(num, den, scale));
+}
+
+function ratioSeries(num, den, scale = 100) {
+  const n = Math.min(num.length, den.length);
+  const out = new Array(n);
+  for (let i = 0; i < n; i++) {
+    out[i] = den[i] > 0 ? (num[i] / den[i]) * scale : 0;
+  }
+  return out;
+}
+
+/* ---- src/shared/profile-stats/series.ts ---- */
+function buildPostSeries(raw) {
+  const n = raw.processedCount;
+  const limit = Math.min(
+    n,
+    raw.postLikes.length,
+    raw.postViews.length,
+    raw.postReplies.length,
+    raw.postReposts.length,
+    raw.postQuotes.length,
+    raw.postBookmarks.length,
+    raw.postFlags.length,
+    raw.postIds.length,
+  );
+
+  const likes = raw.postLikes;
+  const views = raw.postViews;
+  const replies = raw.postReplies;
+  const reposts = raw.postReposts;
+  const quotes = raw.postQuotes;
+  const bookmarks = raw.postBookmarks;
+  const flags = raw.postFlags;
+  const ids = raw.postIds;
+
+  const totalEng = new Array(limit);
+  const engRate = new Array(limit);
+  const timestamps = new Array(limit);
+
+  for (let i = 0; i < limit; i++) {
+    const v = views[i] ?? 0;
+    const eng =
+      (likes[i] ?? 0) +
+      (replies[i] ?? 0) +
+      (reposts[i] ?? 0) +
+      (quotes[i] ?? 0) +
+      (bookmarks[i] ?? 0);
+    totalEng[i] = eng;
+    engRate[i] = v > 0 ? (eng / v) * 100 : 0;
+    timestamps[i] = postIdToTimestamp(ids[i] ?? "");
+  }
+
+  return {
+    n: limit,
+    likes: likes.slice(0, limit),
+    views: views.slice(0, limit),
+    replies: replies.slice(0, limit),
+    reposts: reposts.slice(0, limit),
+    quotes: quotes.slice(0, limit),
+    bookmarks: bookmarks.slice(0, limit),
+    flags: flags.slice(0, limit),
+    ids: ids.slice(0, limit),
+    totalEng,
+    engRate,
+    timestamps,
+  };
+}
+
+/* ---- src/shared/profile-stats/bands.ts ---- */
+const BAND_DEFS = [
+  { key: "small", label: "Small (<10K)", threshold: 10_000 },
+  { key: "mid", label: "Mid (10K\u2013100K)", threshold: 100_000 },
+  { key: "macro", label: "Macro (100K\u20131M)", threshold: 1_000_000 },
+  { key: "mega", label: "Mega (1M+)", threshold: Infinity },
+];
+
+function bandOf(followers) {
+  for (const def of BAND_DEFS) {
+    if (followers < def.threshold) return def.key;
+  }
+  return "mega";
+}
+
+/* ---- src/shared/profile-stats/constants.ts ---- */
+const TARGET_POST_COUNT = 100;
+const MAX_STORED = 100;
+const SESSION_MAX = 10;
+const MIN_TYPE_N = 5;
+const MIN_PARTIAL_N = 10;
+const MIN_SPAN_DAYS = 7;
+const MAX_SKEW = 2.5;
+const MAX_TOP20 = 75;
+const MIN_LIFT_PROFILES = 8;
+const MIN_BAND_N = 5;
+const MIN_COHORT_PROFILES = 8;
+const MIN_COHORT_PROFILES_PREVIEW = 5;
+const MIN_TYPE_LIFT_N = 10;
+const YOUNG_AGE_MS = 24 * 60 * 60 * 1000;
+
+/* ---- src/shared/profile-stats/format.ts ---- */
+function fmtNum(n) {
+  if (!isFinite(n)) return "-";
+  if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+  if (Math.abs(n) >= 1_000) return (n / 1_000).toFixed(1) + "K";
+  if (Math.abs(n) >= 10) return Math.round(n).toLocaleString();
+  return n.toFixed(1);
+}
+
+function fmtPct(n, digits = 1) {
+  if (!isFinite(n)) return "-";
+  return n.toFixed(digits) + "%";
+}
+
+function fmtRate(n) {
+  if (!isFinite(n)) return "-";
+  if (n === 0) return "0%";
+  if (Math.abs(n) < 0.01) return n.toFixed(3) + "%";
+  if (Math.abs(n) < 1) return n.toFixed(2) + "%";
+  return n.toFixed(1) + "%";
+}
+
+function fmtLift(n) {
+  if (!isFinite(n)) return "-";
+  const pct = n * 100;
+  const sign = pct > 0 ? "+" : "";
+  return sign + pct.toFixed(0) + "%";
+}
+
+function fmtBp(n) {
+  if (!isFinite(n)) return "-";
+  return (n * 100).toFixed(1) + " bp";
+}
+
+function fmtCorr(r) {
+  if (!isFinite(r)) return "-";
+  const sign = r > 0 ? "+" : "";
+  return sign + r.toFixed(2);
+}
+
+/* ---- src/shared/profile-stats/content-perf.ts ---- */
+function pearson(xs, ys) {
+  const n = Math.min(xs.length, ys.length);
+  if (n < 3) return 0;
+  const mx = mean(xs.slice(0, n));
+  const my = mean(ys.slice(0, n));
+  let num = 0, dx = 0, dy = 0;
+  for (let i = 0; i < n; i++) {
+    const a = xs[i] - mx;
+    const b = ys[i] - my;
+    num += a * b;
+    dx += a * a;
+    dy += b * b;
+  }
+  const den = Math.sqrt(dx * dy);
+  return den > 0 ? num / den : 0;
+}
+
+function rank(vals) {
+  const idx = vals.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]);
+  const ranks = new Array(vals.length);
+  for (let i = 0; i < idx.length;) {
+    let j = i;
+    while (j < idx.length && idx[j][0] === idx[i][0]) j++;
+    const avg = (i + j - 1) / 2 + 1;
+    for (let k = i; k < j; k++) ranks[idx[k][1]] = avg;
+    i = j;
+  }
+  return ranks;
+}
+
+function spearman(xs, ys) {
+  const n = Math.min(xs.length, ys.length);
+  if (n < MIN_TYPE_N) return 0;
+  return pearson(rank(xs.slice(0, n)), rank(ys.slice(0, n)));
+}
+
+function partialCorr(x, y, z) {
+  const n = Math.min(x.length, y.length, z.length);
+  if (n < MIN_PARTIAL_N) return 0;
+  const rxy = spearman(x.slice(0, n), y.slice(0, n));
+  const rxz = spearman(x.slice(0, n), z.slice(0, n));
+  const ryz = spearman(y.slice(0, n), z.slice(0, n));
+  const den = Math.sqrt((1 - rxz * rxz) * (1 - ryz * ryz));
+  return den > 1e-9 ? (rxy - rxz * ryz) / den : 0;
+}
+
+function viewContrast(eng, views, accountMedViews) {
+  const n = eng.length;
+  const medE = median(eng);
+  const zeroRate = eng.filter((e) => e === 0).length / n;
+
+  let high, low, mode;
+
+  if (medE === 0 || zeroRate >= 0.5) {
+    mode = "nonzero";
+    high = views.filter((_, i) => eng[i] > 0);
+    low = views.filter((_, i) => eng[i] === 0);
+  } else {
+    mode = "median";
+    high = views.filter((_, i) => eng[i] > medE);
+    low = views.filter((_, i) => eng[i] <= medE);
+  }
+
+  const highShare = n > 0 ? high.length / n : 0;
+  const lowShare = n > 0 ? low.length / n : 0;
+  const balanced =
+    high.length >= 2 && low.length >= 2 && highShare <= 0.9 && lowShare <= 0.9;
+
+  const medH = high.length ? median(high) : 0;
+  const medL = low.length ? median(low) : 0;
+
+  return {
+    mode,
+    zeroRate,
+    balanced,
+    viewLiftVsSelf: balanced && accountMedViews > 0 ? medH / accountMedViews - 1 : null,
+    highVsLow: balanced && medL > 0 ? medH / medL - 1 : null,
+    highShare,
+  };
+}
+
+function emptyPerf() {
+  return {
+    n: 0, medEngRate: 0, avgEngRate: 0, medViewRate: 0, medBookmarks: 0, medLikes: 0,
+    liftVsText: 0, liftVsSelf: 0, hasSelfBaseline: false, hasTextBaseline: false,
+    viewLiftVsSelf: 0, hasViewBaseline: false,
+  };
+}
+
+function emptyEngPerf() {
+  return {
+    n: 0, spearmanViews: 0, partialGivenLikes: NaN, hasCorr: false, hasPartial: false,
+    splitMode: "median", zeroRate: 0, viewLiftHighVsSelf: null, highVsLow: null,
+    hasViewBaseline: false, highShare: 0,
+  };
+}
+
+function buildContentAndEngPerf(series, followers, accountMedEng, accountMedViews) {
+  const count = series.n;
+
+  const emptyBucket = () => ({ eng: [], views: [], bm: [], likes: [] });
+  const buckets = {
+    text: emptyBucket(), photo: emptyBucket(), video: emptyBucket(), quote: emptyBucket(),
+    url: emptyBucket(), article: emptyBucket(), mention: emptyBucket(),
+  };
+
+  const flagCounts = { quote: 0, article: 0, photo: 0, video: 0, url: 0, mention: 0 };
+
+  for (let i = 0; i < count; i++) {
+    const views = series.views[i];
+    const likes = series.likes[i];
+    const bookmarks = series.bookmarks[i];
+    const f = series.flags[i];
+
+    const eng = series.engRate[i];
+
+    const hasPhoto = !!(f & PF.HasPhoto);
+    const hasVideo = !!(f & PF.HasVideo);
+    const hasQuote = !!(f & PF.IsQuote);
+    const hasArticle = !!(f & PF.IsArticle);
+    const hasUrl = !!(f & PF.HasURL);
+    const hasMention = !!(f & PF.HasMention);
+
+    if (hasPhoto) flagCounts.photo++;
+    if (hasVideo) flagCounts.video++;
+    if (hasQuote) flagCounts.quote++;
+    if (hasArticle) flagCounts.article++;
+    if (hasUrl) flagCounts.url++;
+    if (hasMention) flagCounts.mention++;
+
+    if (f === 0) {
+      buckets.text.eng.push(eng);
+      buckets.text.views.push(views);
+      buckets.text.bm.push(bookmarks);
+      buckets.text.likes.push(likes);
+    }
+    const push = (k) => {
+      buckets[k].eng.push(eng);
+      buckets[k].views.push(views);
+      buckets[k].bm.push(bookmarks);
+      buckets[k].likes.push(likes);
+    };
+    if (hasPhoto) push("photo");
+    if (hasVideo) push("video");
+    if (hasQuote) push("quote");
+    if (hasUrl) push("url");
+    if (hasArticle) push("article");
+    if (hasMention) push("mention");
+  }
+
+  const hasSelfBaseline = count >= MIN_TYPE_N && accountMedEng > 0;
+  const hasViewBaseline = count >= MIN_TYPE_N && accountMedViews > 0;
+
+  function perfEntry(b) {
+    const en = b.eng.length;
+    if (en === 0) return emptyPerf();
+    return {
+      n: en,
+      medEngRate: median(b.eng),
+      avgEngRate: mean(b.eng),
+      medViewRate: followers > 0 ? (median(b.views) / followers) * 100 : 0,
+      medBookmarks: median(b.bm),
+      medLikes: median(b.likes),
+      liftVsText: 0,
+      liftVsSelf: 0,
+      hasSelfBaseline: false,
+      hasTextBaseline: false,
+      viewLiftVsSelf: 0,
+      hasViewBaseline: false,
+    };
+  }
+
+  const textPerf = (() => {
+    const e = perfEntry(buckets.text);
+    e.hasSelfBaseline = hasSelfBaseline && e.n >= MIN_TYPE_N;
+    e.hasTextBaseline = false;
+    e.liftVsSelf = e.hasSelfBaseline ? e.medEngRate / accountMedEng - 1 : 0;
+    e.liftVsText = 0;
+    e.hasViewBaseline = hasViewBaseline && e.n >= MIN_TYPE_N;
+    e.viewLiftVsSelf = e.hasViewBaseline ? median(buckets.text.views) / accountMedViews - 1 : 0;
+    return e;
+  })();
+
+  const textMed = textPerf.medEngRate > 0 ? textPerf.medEngRate : 0;
+  const textHasBaseline = textPerf.n >= MIN_TYPE_N && textMed > 0;
+
+  function withLift(b) {
+    const e = perfEntry(b);
+    const typeQualifies = e.n >= MIN_TYPE_N;
+
+    e.hasSelfBaseline = hasSelfBaseline && typeQualifies;
+    e.liftVsSelf = e.hasSelfBaseline ? e.medEngRate / accountMedEng - 1 : 0;
+
+    e.hasTextBaseline = textHasBaseline && typeQualifies;
+    e.liftVsText = e.hasTextBaseline ? e.medEngRate / textMed - 1 : 0;
+
+    e.hasViewBaseline = hasViewBaseline && typeQualifies;
+    e.viewLiftVsSelf = e.hasViewBaseline ? median(b.views) / accountMedViews - 1 : 0;
+
+    return e;
+  }
+
+  const contentPerf = {
+    text: textPerf,
+    photo: withLift(buckets.photo),
+    video: withLift(buckets.video),
+    quote: withLift(buckets.quote),
+    url: withLift(buckets.url),
+    article: withLift(buckets.article),
+    mention: withLift(buckets.mention),
+  };
+
+  const engArrays = {
+    likes: series.likes,
+    replies: series.replies,
+    reposts: series.reposts,
+    quotes: series.quotes,
+    bookmarks: series.bookmarks,
+  };
+  const viewsArr = series.views;
+  const likesArr = series.likes;
+
+  function engPerfEntry(key) {
+    const vals = engArrays[key];
+    const nPosts = vals.length;
+    if (nPosts < MIN_TYPE_N) return emptyEngPerf();
+
+    const spearmanViews = spearman(vals, viewsArr);
+    const partialGivenLikes =
+      key === "likes"
+        ? NaN
+        : partialCorr(vals, viewsArr, likesArr);
+
+    const hasCorr = nPosts >= MIN_TYPE_N;
+    const hasPartial = key !== "likes" && nPosts >= MIN_PARTIAL_N;
+
+    const vc = viewContrast(vals, viewsArr, accountMedViews);
+
+    return {
+      n: nPosts,
+      spearmanViews,
+      partialGivenLikes,
+      hasCorr,
+      hasPartial,
+      splitMode: vc.mode,
+      zeroRate: vc.zeroRate,
+      viewLiftHighVsSelf: vc.viewLiftVsSelf,
+      highVsLow: vc.highVsLow,
+      hasViewBaseline: vc.balanced && accountMedViews > 0,
+      highShare: vc.highShare,
+    };
+  }
+
+  const engTypePerf = {
+    likes: engPerfEntry("likes"),
+    replies: engPerfEntry("replies"),
+    reposts: engPerfEntry("reposts"),
+    quotes: engPerfEntry("quotes"),
+    bookmarks: engPerfEntry("bookmarks"),
+  };
+
+  return { flagCounts, contentPerf, engTypePerf };
+}
+
+/* ---- src/shared/profile-stats/profile-model.ts ---- */
+function buildProfileModel(raw) {
+  const series = buildPostSeries(raw);
+  const count = series.n;
+  const followers = raw.followers > 0 ? raw.followers : 1;
+
+  const { totalEng, engRate, views, timestamps } = series;
+
+  const avgLikes = mean(series.likes);
+  const avgViews = mean(series.views);
+  const avgReplies = mean(series.replies);
+  const avgReposts = mean(series.reposts);
+  const avgQuotes = mean(series.quotes);
+  const avgBookmarks = mean(series.bookmarks);
+
+  const medLikes = median(series.likes);
+  const medViews = median(series.views);
+  const medReplies = median(series.replies);
+  const medReposts = median(series.reposts);
+  const medQuotes = median(series.quotes);
+  const medBookmarks = median(series.bookmarks);
+
+  const avgEngRate = mean(engRate);
+  const medEngRate = median(engRate);
+  const avgEngVolume = mean(totalEng);
+  const medEngVolume = median(totalEng);
+
+  const cv = coeffVar(engRate);
+  const zeroEng = pctWhere(totalEng, t => t === 0);
+  const top20 = topShare(totalEng, 0.2);
+
+  const lvr = ratioSeries(series.likes, series.views);
+  const rlr = ratioSeries(series.replies, series.likes);
+  const rvr = ratioSeries(series.reposts, series.views);
+  const qvr = ratioSeries(series.quotes, series.views);
+  const bvr = ratioSeries(series.bookmarks, series.views);
+  const rtlr = ratioSeries(series.reposts, series.likes);
+  const qlr = ratioSeries(series.quotes, series.likes);
+
+  const avgLikeViewRate = mean(lvr);
+  const avgReplyLikeRate = mean(rlr);
+  const avgRepostViewRate = mean(rvr);
+  const avgQuoteViewRate = mean(qvr);
+  const avgBookmarkViewRate = mean(bvr);
+  const avgRepostLikeRate = mean(rtlr);
+  const avgQuoteLikeRate = mean(qlr);
+
+  const medianLikeViewRate = median(lvr);
+  const medianReplyLikeRate = median(rlr);
+  const medianRepostViewRate = median(rvr);
+  const medianQuoteViewRate = median(qvr);
+  const medianBookmarkViewRate = median(bvr);
+  const medianRepostLikeRate = median(rtlr);
+  const medianQuoteLikeRate = median(qlr);
+
+  const likeRate = (avgLikes / followers) * 100;
+  const viewRate = (avgViews / followers) * 100;
+  const replyRate = (avgReplies / followers) * 100;
+  const repostRate = (avgReposts / followers) * 100;
+  const quoteRate = (avgQuotes / followers) * 100;
+  const bookmarkRate = (avgBookmarks / followers) * 100;
+
+  const likeRateMedian = (medLikes / followers) * 100;
+  const viewRateMedian = (medViews / followers) * 100;
+  const replyRateMedian = (medReplies / followers) * 100;
+  const repostRateMedian = (medReposts / followers) * 100;
+  const quoteRateMedian = (medQuotes / followers) * 100;
+  const bookmarkRateMedian = (medBookmarks / followers) * 100;
+
+  const totalInteractions = totalEng.reduce((a, b) => a + b, 0);
+  const compLikes = totalInteractions > 0 ? (series.likes.reduce((a, b) => a + b, 0) / totalInteractions) * 100 : 0;
+  const compReplies = totalInteractions > 0 ? (series.replies.reduce((a, b) => a + b, 0) / totalInteractions) * 100 : 0;
+  const compReposts = totalInteractions > 0 ? (series.reposts.reduce((a, b) => a + b, 0) / totalInteractions) * 100 : 0;
+  const compQuotes = totalInteractions > 0 ? (series.quotes.reduce((a, b) => a + b, 0) / totalInteractions) * 100 : 0;
+  const compBookmarks = totalInteractions > 0 ? (series.bookmarks.reduce((a, b) => a + b, 0) / totalInteractions) * 100 : 0;
+
+  const totalViews = series.views.reduce((a, b) => a + b, 0);
+  const totalBookmarks = series.bookmarks.reduce((a, b) => a + b, 0);
+  const totalReposts = series.reposts.reduce((a, b) => a + b, 0);
+  const totalQuotes = series.quotes.reduce((a, b) => a + b, 0);
+  const saveRate = totalViews > 0 ? (totalBookmarks / totalViews) * 100 : 0;
+  const amplifyRate = totalViews > 0 ? ((totalReposts + totalQuotes) / totalViews) * 100 : 0;
+
+  const { spanDays, postsPerDay } = pacing(timestamps, count);
+
+  const { flagCounts, contentPerf, engTypePerf } =
+    buildContentAndEngPerf(series, followers, medEngRate, medViews);
+
+  const nC = Math.max(count, 1);
+  const mediaShare = ((flagCounts.photo + flagCounts.video) / nC) * 100;
+
+  const flagPcts = {};
+  for (const [k, v] of Object.entries(flagCounts)) {
+    flagPcts[k] = nC > 0 ? (v / nC) * 100 : 0;
+  }
+
+  return {
+    series,
+    handle: raw.handle,
+    followers: raw.followers,
+    following: raw.following,
+    isBlueVerified: raw.isBlueVerified,
+    complete: raw.complete,
+    completedAt: raw.completedAt,
+    processedCount: series.n,
+    zeroViewSkipCount: raw.zeroViewSkipCount ?? 0,
+    youngSkipCount: raw.youngSkipCount ?? 0,
+    band: bandOf(raw.followers),
+
+    avgLikes, medLikes,
+    avgViews, medViews,
+    avgReplies, medReplies,
+    avgReposts, medReposts,
+    avgQuotes, medQuotes,
+    avgBookmarks, medBookmarks,
+
+    likeRate, likeRateMedian,
+    viewRate, viewRateMedian, medViewRate: viewRateMedian,
+    replyRate, replyRateMedian,
+    repostRate, repostRateMedian,
+    quoteRate, quoteRateMedian,
+    bookmarkRate, bookmarkRateMedian,
+
+    avgEngRate, medEngRate,
+
+    avgLikeViewRate, medianLikeViewRate,
+    avgReplyLikeRate, medianReplyLikeRate,
+    avgRepostViewRate, medianRepostViewRate,
+    avgQuoteViewRate, medianQuoteViewRate,
+    avgBookmarkViewRate, medianBookmarkViewRate,
+    avgRepostLikeRate, medianRepostLikeRate,
+    avgQuoteLikeRate, medianQuoteLikeRate,
+
+    compLikes, compReplies, compReposts, compQuotes, compBookmarks,
+
+    cv, zeroEng, top20,
+    avgEngVolume, medEngVolume,
+
+    saveRate, amplifyRate, mediaShare,
+
+    timespanDays: spanDays,
+    postsPerDay,
+
+    quoteCount: flagCounts.quote,
+    photoCount: flagCounts.photo,
+    videoCount: flagCounts.video,
+    urlCount: flagCounts.url,
+    articleCount: flagCounts.article,
+    mentionCount: flagCounts.mention,
+    flagPcts,
+
+    contentPerf,
+    engTypePerf,
+  };
+}
+
+/* ==========================================================================
+   PORTED SCATTER CHART CODE
+   ========================================================================== */
+
+/* ---- src/content/panel/metrics/scatter-models.ts ---- */
+function buildReachScatterModel(profiles) {
+  const points = [];
+  let skipped = 0;
+
+  for (const p of profiles) {
+    if (p.followers > 0 && p.medViews > 0 && isFinite(p.followers) && isFinite(p.medViews)) {
+      points.push({
+        handle: p.handle,
+        followers: p.followers,
+        medViews: p.medViews,
+        medViewRate: p.medViewRate,
+        medEngRate: p.medEngRate,
+        medEngVolume: p.medEngVolume,
+        top20: p.top20,
+        band: p.band,
+        party: p.party,
+        senName: p.senName,
+        senState: p.senState,
+      });
+    } else {
+      skipped++;
+    }
+  }
+
+  const n = points.length;
+  if (n === 0) {
+    return { points, n: 0, xMin: 0, xMax: 4, yMin: 0, yMax: 4, skipped };
+  }
+
+  const logs = points.map(p => ({ x: Math.log10(p.followers), y: Math.log10(p.medViews) }));
+  let xMin = Math.min(...logs.map(l => l.x));
+  let xMax = Math.max(...logs.map(l => l.x));
+  let yMin = Math.min(...logs.map(l => l.y));
+  let yMax = Math.max(...logs.map(l => l.y));
+
+  const spanX = xMax - xMin || 1;
+  const spanY = yMax - yMin || 1;
+  xMin -= 0.05 * spanX;
+  xMax += 0.05 * spanX;
+  yMin -= 0.05 * spanY;
+  yMax += 0.05 * spanY;
+
+  if (xMin < 0) xMin = 0;
+  if (yMin < 0) yMin = 0;
+
+  return { points, n, xMin, xMax, yMin, yMax, skipped };
+}
+
+function buildImpactMapModel(profiles) {
+  const points = [];
+  let skipped = 0;
+
+  for (const p of profiles) {
+    if (p.followers > 0 && p.medEngVolume > 0 && isFinite(p.followers) && isFinite(p.medEngVolume)) {
+      points.push({
+        handle: p.handle,
+        followers: p.followers,
+        medViews: p.medViews,
+        medEngVolume: p.medEngVolume,
+        medViewRate: p.medViewRate,
+        medEngRate: p.medEngRate,
+        top20: p.top20,
+        band: p.band,
+        party: p.party,
+        senName: p.senName,
+        senState: p.senState,
+      });
+    } else {
+      skipped++;
+    }
+  }
+
+  const n = points.length;
+  if (n === 0) {
+    return { points, n: 0, xMin: 0, xMax: 4, yMin: 0, yMax: 4, skipped };
+  }
+
+  const logs = points.map(p => ({ x: Math.log10(p.followers), y: Math.log10(p.medEngVolume) }));
+  let xMin = Math.min(...logs.map(l => l.x));
+  let xMax = Math.max(...logs.map(l => l.x));
+  let yMin = Math.min(...logs.map(l => l.y));
+  let yMax = Math.max(...logs.map(l => l.y));
+
+  const spanX = xMax - xMin || 1;
+  const spanY = yMax - yMin || 1;
+  xMin -= 0.05 * spanX;
+  xMax += 0.05 * spanX;
+  yMin -= 0.05 * spanY;
+  yMax += 0.05 * spanY;
+
+  if (xMin < 0) xMin = 0;
+  if (yMin < 0) yMin = 0;
+
+  return { points, n, xMin, xMax, yMin, yMax, skipped };
+}
+
+function guideLineInLogBox(r, xMin, xMax, yMin, yMax) {
+  const logR = Math.log10(r);
+  const pts = [];
+
+  const yLeft = xMin + logR;
+  if (yLeft >= yMin && yLeft <= yMax) pts.push({ x: xMin, y: yLeft });
+
+  const yRight = xMax + logR;
+  if (yRight >= yMin && yRight <= yMax) pts.push({ x: xMax, y: yRight });
+
+  const xBottom = yMin - logR;
+  if (xBottom >= xMin && xBottom <= xMax) pts.push({ x: xBottom, y: yMin });
+
+  const xTop = yMax - logR;
+  if (xTop >= xMin && xTop <= xMax) pts.push({ x: xTop, y: yMax });
+
+  if (pts.length < 2) return null;
+  return { x1: pts[0].x, y1: pts[0].y, x2: pts[1].x, y2: pts[1].y };
+}
+
+function logTicks(min, max) {
+  const ticks = [];
+  const startExp = Math.ceil(min);
+  const endExp = Math.floor(max);
+  if (startExp > endExp) {
+    const mid = Math.pow(10, Math.round((min + max) / 2));
+    if (mid > 0) ticks.push(mid);
+    return ticks;
+  }
+  for (let e = startExp; e <= endExp; e++) {
+    ticks.push(Math.pow(10, e));
+  }
+  return ticks;
+}
+
+function linearTicks(min, max, step) {
+  const ticks = [];
+  for (let v = Math.ceil(min / step) * step; v <= max; v += step) ticks.push(v);
+  return ticks;
+}
+
+/* ---- src/content/panel/metrics/svg-scatter.ts ---- */
+const SCATTER_LAYOUT = { W: 500, H: 260, padL: 64, padR: 16, padT: 12, padB: 36 };
+
+function svgGuideHtml(guides, xMin, xMax, yMin, yMax, sx, sy, off) {
+  let html = "";
+  for (const g of guides) {
+    const seg = guideLineInLogBox(g.r, xMin, xMax, yMin, yMax);
+    if (!seg) continue;
+    const x1 = sx(seg.x1);
+    const y1 = sy(seg.y1);
+    const x2 = sx(seg.x2);
+    const y2 = sy(seg.y2);
+    const [lx, ly] = y1 <= y2 ? [x1, y1] : [x2, y2];
+    html += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="xfeedfilter-metrics-scatter-guide"/>`;
+    html += `<text x="${lx.toFixed(1)}" y="${(ly - 4 * (off || 1)).toFixed(1)}" class="xfeedfilter-metrics-scatter-guide-label">${g.label}</text>`;
+  }
+  return html;
+}
+
+function svgGridHtml(sx, sy, xTicks, yTicks, padL, padT, plotW, plotH) {
+  let h = "";
+  for (const v of xTicks) { const px = sx(Math.log10(v)); h += `<line x1="${px.toFixed(1)}" y1="${padT}" x2="${px.toFixed(1)}" y2="${(padT + plotH)}" class="xfeedfilter-metrics-scatter-grid"/>`; }
+  for (const v of yTicks) { const py = sy(Math.log10(v)); h += `<line x1="${padL}" y1="${py.toFixed(1)}" x2="${(padL + plotW)}" y2="${py.toFixed(1)}" class="xfeedfilter-metrics-scatter-grid"/>`; }
+  return h;
+}
+
+function svgXLabelHtml(sx, xTicks, padT, plotH, fmt, off) {
+  let h = "";
+  for (const v of xTicks) { const px = sx(Math.log10(v)); h += `<text x="${px.toFixed(1)}" y="${(padT + plotH + 18 * (off || 1))}" class="xfeedfilter-metrics-scatter-x-label">${fmt(v)}</text>`; }
+  return h;
+}
+
+function svgYLabelHtml(sy, yTicks, padL, fmt, off) {
+  let h = "";
+  for (const v of yTicks) { const py = sy(Math.log10(v)); h += `<text x="${(padL - 8 * (off || 1))}" y="${(py + 4)}" class="xfeedfilter-metrics-scatter-y-label">${fmt(v)}</text>`; }
+  return h;
+}
+
+function svgAxisTitleXHtml(padL, plotW, padT, plotH, title, off) {
+  return `<text x="${(padL + plotW / 2).toFixed(1)}" y="${(padT + plotH + 30 * (off || 1))}" class="xfeedfilter-metrics-scatter-axis-title">${escHtml(title)}</text>`;
+}
+
+function svgAxisTitleYHtml(padL, padT, plotH, title) {
+  const yC = padT + plotH / 2;
+  const x = Math.round(padL / 4);
+  return `<text transform="rotate(-90, ${x}, ${yC.toFixed(1)})" x="${x}" y="${yC.toFixed(1)}" class="xfeedfilter-metrics-scatter-axis-title" text-anchor="middle">${escHtml(title)}</text>`;
+}
+
+function scatterTooltipHtml(header, ...grids) {
+  let h = `<div class="xf-scatter-tooltip-header">${header}</div>`;
+  for (let i = 0; i < grids.length; i++) {
+    if (i > 0) h += `<div class="xf-scatter-tooltip-divider"></div>`;
+    h += `<div class="xf-scatter-tooltip-grid">`;
+    for (const f of grids[i]) {
+      h += `<span class="xf-scatter-tooltip-label">${escHtml(f.label)}</span>`;
+      h += `<span class="xf-scatter-tooltip-value">${f.value}</span>`;
+    }
+    h += `</div>`;
+  }
+  return h;
+}
+
+/* ---- src/content/panel/metrics/interactions.ts ---- */
+function attachInteraction(container, tooltip, opts) {
+  let highlightedEl = null;
+  let mousemoveRaf = null;
+  let lastX = 0;
+  let lastY = 0;
+
+  container.addEventListener("mousemove", (e) => {
+    const mouse = e;
+    lastX = mouse.clientX;
+    lastY = mouse.clientY;
+    if (mousemoveRaf) return;
+    mousemoveRaf = requestAnimationFrame(() => {
+      mousemoveRaf = null;
+      const el = document.elementFromPoint(lastX, lastY);
+      const target = el && el.closest ? el.closest(opts.selector) : null;
+      if (highlightedEl && highlightedEl !== target) {
+        opts.unhighlight(highlightedEl);
+      }
+      if (target) {
+        opts.highlight(target);
+        highlightedEl = target;
+        tooltip.innerHTML = opts.renderTooltip(target);
+        tooltip.style.display = "block";
+        const tx = Math.min(lastX + 12, window.innerWidth - tooltip.offsetWidth - 8);
+        const ty = Math.max(lastY - 10, 4);
+        tooltip.style.left = tx + "px";
+        tooltip.style.top = ty + "px";
+      } else {
+        highlightedEl = null;
+        tooltip.style.display = "none";
+      }
+    });
+  });
+
+  container.addEventListener("mouseleave", () => {
+    if (highlightedEl) {
+      opts.unhighlight(highlightedEl);
+      highlightedEl = null;
+    }
+    tooltip.style.display = "none";
+  });
+
+  container.addEventListener("click", (e) => {
+    const target = e.target.closest(opts.selector);
+    if (!target) return;
+    opts.onClick && opts.onClick(target);
+  });
+}
+
+/* ==========================================================================
+   SENATOR METADATA - from senators-metadata.json
+   ========================================================================== */
+let SENATORS_META = null;
+
+const PARTY_LABEL = { D: "Democrat", R: "Republican", I: "Independent" };
+const PARTY_COLOR = { D: "var(--x-color-accent)", R: "var(--x-color-red)", I: "var(--x-color-chart-0)" };
+
+function attachParty(profile) {
+  const meta = SENATORS_META ? SENATORS_META[profile.handle.toLowerCase()] : null;
+  profile.party = meta ? meta.party : "?";
+  profile.senName = meta ? meta.name : "";
+  profile.senState = meta ? meta.state : "";
+  profile.freedomIndex = meta && typeof meta.freedomIndex === "number" ? meta.freedomIndex : null;
+  profile.israelLobbyTotal = meta && typeof meta.israelLobbyTotal === "number" ? meta.israelLobbyTotal : null;
+  return profile;
+}
+
+/* ==========================================================================
+   CHART RENDER - Reach/Impact by party
+   ========================================================================== */
+
+const FETTERMAN_HANDLE = "senfettermanpa";
+
+function fettermanOutlierSet(impactModel) {
+  const pts = [...impactModel.points].sort((a, b) => a.medEngVolume - b.medEngVolume);
+  const fetterman = pts.find(p => p.handle.toLowerCase() === FETTERMAN_HANDLE);
+  if (!fetterman) return null;
+  const yellowHandles = new Set();
+  let sum = 0;
+  for (const p of pts) {
+    yellowHandles.add(p.handle);
+    sum += p.medEngVolume;
+    if (sum >= fetterman.medEngVolume) break;
+  }
+  return {
+    yellowHandles,
+    count: yellowHandles.size,
+    sum,
+    fettermanEng: fetterman.medEngVolume,
+  };
+}
+
+function partySvgInner(data, mode, scale, W, H, padL, padR, padT, padB, showLabels, pinned, exp, yellowSet) {
+  const el = exp ? 0.8 : 1;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const sx = (x) => padL + (x - data.xMin) / (data.xMax - data.xMin) * plotW;
+  const yKey = mode === "reach" ? "medViews" : "medEngVolume";
+  const isLinear = scale === "linear";
+
+  const guides = mode === "reach"
+    ? [{ r: 0.01, label: "1%" }, { r: 0.1, label: "10%" }, { r: 1, label: "100%" }]
+    : [{ r: 0.0001, label: "0.01%" }, { r: 0.001, label: "0.1%" }, { r: 0.01, label: "1%" }, { r: 0.1, label: "10%" }];
+
+  const xTicks = logTicks(data.xMin, data.xMax);
+  let sy, yTicks, grid, guidesHtml, yLabels;
+
+  if (isLinear) {
+    const yMax = Math.max(...data.points.map(p => p[yKey]), 0) * 1.05 || 1;
+    sy = (y) => padT + plotH - (y - 0) / (yMax - 0) * plotH;
+    yTicks = linearTicks(0, yMax, niceStep(yMax / 5));
+    grid = mixedGridHtml(sx, sy, xTicks, yTicks, padL, padT, plotW, plotH, true, false);
+    guidesHtml = "";
+    yLabels = linearYLabelHtml(sy, yTicks, padL, fmtNum, el);
+  } else {
+    sy = (y) => padT + plotH - (y - data.yMin) / (data.yMax - data.yMin) * plotH;
+    yTicks = logTicks(data.yMin, data.yMax);
+    grid = svgGridHtml(sx, sy, xTicks, yTicks, padL, padT, plotW, plotH);
+    guidesHtml = svgGuideHtml(guides, data.xMin, data.xMax, data.yMin, data.yMax, sx, sy, el);
+    yLabels = svgYLabelHtml(sy, yTicks, padL, fmtNum, el);
+  }
+
+  let h = "";
+  h += grid;
+  h += guidesHtml;
+  h += yLabels;
+  h += svgXLabelHtml(sx, xTicks, padT, plotH, fmtNum, el);
+
+  const r = (data.points.length > 80 ? 3 : 5) * el;
+  for (const p of data.points) {
+    const cx = sx(Math.log10(p.followers)).toFixed(1);
+    const cy = sy(isLinear ? p[yKey] : Math.log10(p[yKey])).toFixed(1);
+    let color = PARTY_COLOR[p.party] || "var(--x-color-chart-0)";
+    if (yellowSet && yellowSet.has(p.handle)) color = "var(--x-color-chart-4)";
+    h += `<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="${color}" class="xfeedfilter-metrics-scatter-point"
+      data-handle="${escHtml(p.handle)}"
+      data-party="${escHtml(p.party)}"
+      data-senname="${escHtml(p.senName || "")}"
+      data-senstate="${escHtml(p.senState || "")}"
+      data-followers="${p.followers}"
+      data-yval="${p[yKey]}"
+      data-viewrate="${p.medViewRate}"
+      data-medengrate="${p.medEngRate}"
+      data-medengvol="${p.medEngVolume}"
+      data-medviews="${p.medViews}"
+      data-top20="${p.top20}"/>`;
+  }
+
+  if (showLabels || (pinned && pinned.size > 0)) {
+    h += pointLabelsHtml(data.points, yKey, isLinear, sx, sy, padL, padT, plotW, plotH, showLabels, pinned, exp);
+  }
+
+  h += svgAxisTitleXHtml(padL, plotW, padT, plotH, "Followers (log)", el);
+  h += svgAxisTitleYHtml(padL, padT, plotH, (mode === "reach" ? "Med views (" : "Med eng volume (") + scale + ")");
+
+  return h;
+}
+
+function pointLabelsHtml(points, yKey, isLinear, sx, sy, padL, padT, plotW, plotH, showLabels, pinned, exp) {
+  const el = exp ? 0.8 : 1;
+  const of = exp ? 1.6 : 1;
+  const CHAR_W = 6.2 * el;
+  const LABEL_H = 12 * el;
+  const HALF = 4 * el;
+  const MINX = padL + 2;
+  const MAXX = padL + plotW - 2;
+  const MINY = padT + 2;
+  const MAXY = padT + plotH - 2;
+
+  const pts = points.map(p => {
+    const px = sx(Math.log10(p.followers));
+    const py = sy(isLinear ? p[yKey] : Math.log10(p[yKey]));
+    return { handle: p.handle, x: px, y: py };
+  });
+  const byHandle = new Map(pts.map(p => [p.handle, p]));
+  const placed = [];
+  const boxes = [];
+
+  const overlaps = (x1, y1, x2, y2, handle, checkPts) => {
+    for (const b of boxes) {
+      if (x1 < b.x2 && x2 > b.x1 && y1 < b.y2 && y2 > b.y1) return true;
+    }
+    if (checkPts) {
+      for (const p of pts) {
+        if (p.handle === handle) continue;
+        if (x1 < p.x + HALF && x2 > p.x - HALF && y1 < p.y + HALF && y2 > p.y - HALF) return true;
+      }
+    }
+    return false;
+  };
+
+  const order = [...points].sort((a, b) => {
+    const pa = pinned.has(a.handle) ? 0 : 1;
+    const pb = pinned.has(b.handle) ? 0 : 1;
+    if (pa !== pb) return pa - pb;
+    return (b[yKey] || 0) - (a[yKey] || 0);
+  });
+
+  for (const p of order) {
+    if (!showLabels && !pinned.has(p.handle)) continue;
+    const cx = byHandle.get(p.handle).x;
+    const cy = byHandle.get(p.handle).y;
+    const isPin = pinned.has(p.handle);
+    const label = p.senName || "@" + p.handle;
+    const w = label.length * CHAR_W;
+    const candidatesAt = (k, all) => {
+      const gx = 6 * k * of;
+      const gy = 4 * k * of;
+      const c = [
+        { x1: cx + gx, y1: cy - gy - LABEL_H, x2: cx + gx + w, y2: cy - gy, ex: cx + gx + 8 * el, ey: cy - gy - 5 * el },
+        { x1: cx - gx - w, y1: cy - gy - LABEL_H, x2: cx - gx, y2: cy - gy, ex: cx - gx - 8 * el, ey: cy - gy - 5 * el },
+        { x1: cx + gx, y1: cy + gy + 2 * el, x2: cx + gx + w, y2: cy + gy + 2 * el + LABEL_H, ex: cx + gx + 8 * el, ey: cy + gy + 2 * el + LABEL_H - 5 * el },
+        { x1: cx - gx - w, y1: cy + gy + 2 * el, x2: cx - gx, y2: cy + gy + 2 * el + LABEL_H, ex: cx - gx - 8 * el, ey: cy + gy + 2 * el + LABEL_H - 5 * el },
+      ];
+      if (!all) return c;
+      c.push(
+        { x1: cx - w / 2, y1: cy - gy - LABEL_H, x2: cx + w / 2, y2: cy - gy, ex: cx, ey: cy - gy - 5 * el },
+        { x1: cx - w / 2, y1: cy + gy + 2 * el, x2: cx + w / 2, y2: cy + gy + 2 * el + LABEL_H, ex: cx, ey: cy + gy + 2 * el + LABEL_H - 5 * el },
+        { x1: cx - 4 * k * of - w, y1: cy - 6 * el, x2: cx - 4 * k * of, y2: cy + 6 * el, ex: cx - 4 * k * of - 8 * el, ey: cy + 1 * el },
+        { x1: cx + 4 * k * of, y1: cy - 6 * el, x2: cx + 4 * k * of + w, y2: cy + 6 * el, ex: cx + 4 * k * of + 8 * el, ey: cy + 1 * el },
+      );
+      return c;
+    };
+    const tryPlace = (checkPts, ks, all) => {
+      for (const k of ks) {
+        for (const c of candidatesAt(k, all)) {
+          if (c.x1 < MINX || c.x2 > MAXX || c.y1 < MINY || c.y2 > MAXY) continue;
+          if (overlaps(c.x1, c.y1, c.x2, c.y2, p.handle, checkPts)) continue;
+          return c;
+        }
+      }
+      return null;
+    };
+    const RINGS = [1, 1.6, 2.4, 3.4, 4.8, 6.8, 9.5, 13.5, 18];
+    let chosen = tryPlace(true, isPin ? RINGS : [1], isPin);
+    if (!chosen && isPin) {
+      let best = null, bestScore = Infinity, bestDist = Infinity;
+      for (const k of RINGS) {
+        for (const c of candidatesAt(k, true)) {
+          if (c.x1 < MINX || c.x2 > MAXX || c.y1 < MINY || c.y2 > MAXY) continue;
+          let hits = 0;
+          for (const q of pts) {
+            if (q.handle === p.handle) continue;
+            if (c.x1 < q.x + HALF && c.x2 > q.x - HALF && c.y1 < q.y + HALF && c.y2 > q.y - HALF) hits++;
+          }
+          if (hits < bestScore || (hits === bestScore && k < bestDist)) {
+            bestScore = hits;
+            bestDist = k;
+            best = c;
+          }
+        }
+      }
+      chosen = best;
+    }
+    if (!chosen) continue;
+    boxes.push(chosen);
+    placed.push({ handle: p.handle, text: label, x: chosen.x1, y: chosen.y1 + LABEL_H, pinned: isPin, px: cx, py: cy, ax: chosen.ex, ay: chosen.ey });
+  }
+
+  let h = "";
+  for (const l of placed) {
+    h += `<line x1="${l.px.toFixed(1)}" y1="${l.py.toFixed(1)}" x2="${l.ax.toFixed(1)}" y2="${l.ay.toFixed(1)}" class="xfeedfilter-metrics-scatter-leader"/>`;
+    h += `<text x="${l.x.toFixed(1)}" y="${l.y.toFixed(1)}" class="xfeedfilter-metrics-scatter-point-label${l.pinned ? " xfeedfilter-metrics-scatter-point-label--pinned" : ""}">${escHtml(l.text)}</text>`;
+  }
+  return h;
+}
+
+function partyTooltipHtml(el, mode) {
+  const handle = el.getAttribute("data-handle") || "";
+  const party = el.getAttribute("data-party") || "?";
+  const senName = el.getAttribute("data-senname") || "";
+  const senState = el.getAttribute("data-senstate") || "";
+  const followers = el.getAttribute("data-followers") || "0";
+  const yVal = el.getAttribute("data-yval") || "0";
+  const medEngRate = el.getAttribute("data-medengrate") || "0";
+  const medEngVol = el.getAttribute("data-medengvol") || "0";
+  const medViews = el.getAttribute("data-medviews") || "0";
+  const viewRate = el.getAttribute("data-viewrate") || "0";
+  const top20 = el.getAttribute("data-top20") || "0";
+
+  const fCount = parseFloat(followers);
+  const yValNum = parseFloat(yVal);
+  const engPerFollower = fCount > 0 ? fmtPct((yValNum / fCount) * 100, 2) : "-";
+  const perFollowerRow = mode === "reach" ? [] : [{ label: "Med eng/flw", value: engPerFollower }];
+  const partyColor = PARTY_COLOR[party] || "var(--x-color-dim)";
+  const nameHtml = senName ? `${escHtml(senName)}${senState ? " \u00b7 " + escHtml(senState) : ""}` : "\u2013";
+
+  return scatterTooltipHtml(`@${escHtml(handle)}`,
+    [{ label: "Senator", value: nameHtml },
+     { label: "Party", value: `<span style="color:${partyColor}">${escHtml(PARTY_LABEL[party] || party)}</span>` },
+     { label: "Followers", value: fmtNum(fCount) }],
+    [{ label: mode === "reach" ? "Med views" : "Med eng volume", value: fmtNum(yValNum) },
+     ...perFollowerRow,
+     { label: "Med eng rate", value: fmtPct(parseFloat(medEngRate)) },
+     { label: "Med view/flw", value: fmtPct(parseFloat(viewRate)) }],
+    [{ label: "Hit concentration", value: fmtPct(parseFloat(top20), 0) },
+     { label: "Med views", value: fmtNum(parseFloat(medViews)) },
+     { label: "Med eng volume", value: fmtNum(parseFloat(medEngVol)) }]
+  );
+}
+
+const FOOTNOTES = {
+  reach: `Each dot is one senator. X-axis = followers (log). Y-axis = median views (reach mode), togglable between log and linear scales. Diagonal reference lines show constant rates (log mode only). Colors show party: blue = Democrat, red = Republican, gray = Independent (King ME, Sanders VT \u2013 both caucus with the Democrats). Labels: toggle to show senator name labels near the points; click a point to pin/unpin its label (double-click opens that senator on x.com). Hover any dot for details.`,
+  impact: `Each dot is one senator. X-axis = followers (log). Y-axis = median engagement volume (impact mode), togglable between log and linear scales. Diagonal reference lines show constant rates (log mode only). Colors show party: blue = Democrat, red = Republican, gray = Independent (King ME, Sanders VT \u2013 both caucus with the Democrats). Labels: toggle to show senator name labels near the points; click a point to pin/unpin its label (double-click opens that senator on x.com). Hover any dot for details.`,
+};
+
+function partyLegendHtml() {
+  return `<div class="xfeedfilter-metrics-scatter-legend">
+    <span><span class="xfeedfilter-metrics-scatter-legend-dot" style="background:var(--x-color-accent)"></span>Democrat</span>
+    <span><span class="xfeedfilter-metrics-scatter-legend-dot" style="background:var(--x-color-red)"></span>Republican</span>
+    <span><span class="xfeedfilter-metrics-scatter-legend-dot" style="background:var(--x-color-chart-0)"></span>Independent</span>
+  </div>`;
+}
+
+function renderPartyTable(profiles) {
+  const order = [["R", "Republican"], ["D", "Democrat"]];
+  let rows = "";
+  for (const [key, label] of order) {
+    const group = key === "D"
+      ? profiles.filter(p => p.party === "D" || p.party === "I")
+      : profiles.filter(p => p.party === key);
+    if (group.length === 0) continue;
+    const medEngRate = median(group.map(p => p.medEngRate));
+    const medViewRate = median(group.map(p => p.medViewRate));
+    const medEngVol = median(group.map(p => p.medEngVolume));
+    const totalViews = group.reduce((a, p) => a + p.medViews, 0);
+    const totalEng = group.reduce((a, p) => a + p.medEngVolume, 0);
+    const totalFollowers = group.reduce((a, p) => a + p.followers, 0);
+    const color = PARTY_COLOR[key];
+    rows += `
+    <div class="xfeedfilter-metrics-table-row">
+      <span><span class="xfeedfilter-metrics-legend-dot" style="background:${color}"></span>${label}</span>
+      <span>${group.length}</span>
+      <span>${fmtPct(medEngRate)}</span>
+      <span>${fmtPct(medViewRate)}</span>
+      <span>${fmtNum(medEngVol)}</span>
+      <span>${fmtNum(totalViews)}</span>
+      <span>${fmtNum(totalEng)}</span>
+      <span>${fmtNum(totalFollowers)}</span>
+    </div>`;
+  }
+  return `
+  <div class="xfeedfilter-metrics-section">
+    <h3 class="xfeedfilter-metrics-section-title">Party comparison</h3>
+    <p class="xfeedfilter-metrics-section-desc">Median cohort stats per party. <span class="xfeedfilter-metrics-muted">Independents (King, Sanders) who caucus with Democrats are included in the Democrat row.</span></p>
+    <div class="xfeedfilter-metrics-table">
+      <div class="xfeedfilter-metrics-table-header">
+        <span>Party</span><span>n</span><span>Med eng rate</span><span>Med view/flw</span><span>Med eng vol</span><span>Total med views</span><span>Total med eng</span><span>Total followers</span>
+      </div>
+      ${rows}
+    </div>
+    <details class="xfeedfilter-metrics-chart-defs">
+      <summary>Chart definitions</summary>
+      <p class="xfeedfilter-metrics-footnote">
+        <strong>Med eng rate</strong>: median engagement rate (engagements \u00f7 views).<br>
+        <strong>Med view/flw</strong>: median views per follower.<br>
+        <strong>Med eng vol</strong>: median engagement volume per post.<br>
+        <strong>Total med views</strong>: sum of senators' median views. <strong>Total med eng</strong>: sum of senators' median engagement volume. <strong>Total followers</strong>: sum of senators' followers.<br>
+      </p>
+    </details>
+  </div>`;
+}
+
+function renderChartSection(reachModel, impactModel) {
+  const { W, H, padL, padR, padT, padB } = SCATTER_LAYOUT;
+  return `
+  <div class="xfeedfilter-metrics-section xf-chart-section">
+    <h3 class="xfeedfilter-metrics-section-title">Reach/Impact vs audience size</h3>
+    <p class="xfeedfilter-metrics-section-desc">
+      How senators&rsquo; reach (median views) and impact (median engagement volume) scale with audience size, colored by political party instead of follower band.
+    </p>
+    <div class="xfeedfilter-metrics-toggle-row">
+      <div class="xfeedfilter-metrics-toggle-group">
+        <button class="xf-toggle-btn xf-toggle-btn--active" data-mode="reach">Reach</button>
+        <button class="xf-toggle-btn" data-mode="impact">Impact</button>
+      </div>
+      <div class="xfeedfilter-metrics-toggle-group">
+        <button class="xf-toggle-btn xf-toggle-btn--active" data-scale="log">Y log</button>
+        <button class="xf-toggle-btn" data-scale="linear">Y linear</button>
+      </div>
+      <div class="xfeedfilter-metrics-toggle-group">
+        <button class="xf-toggle-btn xf-toggle-btn--active" data-labels="off">Labels off</button>
+        <button class="xf-toggle-btn" data-labels="on">Labels on</button>
+      </div>
+      <button class="page-btn" id="xf-party-expand-btn" type="button">Expand</button>
+      <button class="page-btn" id="xf-party-zoom-btn" type="button">Zoom</button>
+    </div>
+    <div class="xfeedfilter-metrics-scatter-wrap">
+      <svg viewBox="0 0 ${W} ${H}" class="xfeedfilter-metrics-scatter" role="img" aria-label="Scatter plot of followers vs median views, colored by party">
+        ${partySvgInner(reachModel, "reach", "log", W, H, padL, padR, padT, padB, false, [], false)}
+      </svg>
+      <div class="xf-chart-tooltip xf-scatter-tooltip"></div>
+    </div>
+    <div id="xf-chart-legend">${partyLegendHtml()}</div>
+    <details class="xfeedfilter-metrics-chart-defs">
+      <summary>Chart definitions</summary>
+      <p class="xfeedfilter-metrics-footnote" id="xf-chart-footnote">${FOOTNOTES.reach}</p>
+    </details>
+  </div>`;
+}
+
+const ZOOM = { W: 2000, H: 1040, padL: 180, padR: 60, padT: 36, padB: 116 };
+
+function renderFettermanChartSection(impactModel, outlier) {
+  const { W, H, padL, padR, padT, padB } = SCATTER_LAYOUT;
+  return `
+  <div class="xfeedfilter-metrics-section xf-fetterman-section">
+    <h3 class="xfeedfilter-metrics-section-title">Reach/Impact vs audience size: Fetterman outlier</h3>
+    <p class="xfeedfilter-metrics-section-desc">
+      Fixed to Impact mode, Y log, labels on, highlighting John Fetterman as the outlier. Gold senators are the smallest cumulative set (from the lowest med eng volume up) whose combined median engagement volume reaches Fetterman&rsquo;s own.
+    </p>
+    <div class="xfeedfilter-metrics-scatter-wrap">
+      <svg viewBox="0 0 ${W} ${H}" class="xfeedfilter-metrics-scatter" role="img" aria-label="Impact vs audience size scatter highlighting Fetterman as an outlier">
+        ${partySvgInner(impactModel, "impact", "log", W, H, padL, padR, padT, padB, true, new Set(), false, outlier.yellowHandles)}
+      </svg>
+      <div class="xf-chart-tooltip xf-scatter-tooltip"></div>
+    </div>
+    <div class="xfeedfilter-metrics-scatter-legend">
+      <span><span class="xfeedfilter-metrics-scatter-legend-dot" style="background:var(--x-color-chart-4)"></span>${outlier.count} senators, combined med eng volume reaches Fetterman&rsquo;s</span>
+      <span><span class="xfeedfilter-metrics-scatter-legend-dot" style="background:var(--x-color-accent)"></span>Democrat</span>
+      <span><span class="xfeedfilter-metrics-scatter-legend-dot" style="background:var(--x-color-red)"></span>Republican</span>
+      <span><span class="xfeedfilter-metrics-scatter-legend-dot" style="background:var(--x-color-chart-0)"></span>Independent</span>
+    </div>
+    <details class="xfeedfilter-metrics-chart-defs">
+      <summary>Chart definitions</summary>
+      <p class="xfeedfilter-metrics-footnote" id="xf-fetterman-footnote">
+        Each dot is one senator. X-axis = followers (log). Y-axis = median engagement volume (log). Fixed to Impact mode, Y log, labels on. Starting from the smallest median engagement volume, senators are accumulated in ascending order until the running total reaches Fetterman&rsquo;s own volume (${fmtNum(outlier.fettermanEng)}); all ${outlier.count} senators absorbed before that threshold are gold (combined ${fmtNum(outlier.sum)}), while Fetterman has the highest single volume (${fmtNum(outlier.fettermanEng)}) of ${impactModel.n} senators. Click a point to pin/unpin its label; double-click opens that senator on x.com. Hover any dot for details.
+      </p>
+    </details>
+  </div>`;
+}
+
+const ZOOM_SVG_STYLE = `
+:root {
+  --x-color-accent: #1d9bf0;
+  --x-color-red: #e0245e;
+  --x-color-chart-0: #6e767d;
+  --x-color-chart-1: #1d9bf0;
+  --x-color-chart-2: #00ba7c;
+  --x-color-chart-3: #f91880;
+  --x-color-chart-4: #ffd400;
+  --x-color-chart-5: #794bc4;
+  --x-color-chart-6: #ff7a00;
+  --x-color-text: #eff3f4;
+  --x-color-border: #2f3336;
+  --x-color-dim: #8b98a5;
+  --x-color-bg-raised: #161616;
+}
+.xfeedfilter-metrics-scatter-grid { stroke: var(--x-color-border); stroke-opacity: 0.25; stroke-width: 1; }
+.xfeedfilter-metrics-scatter-guide { stroke: var(--x-color-dim); stroke-opacity: 0.45; stroke-width: 1; stroke-dasharray: 4 3; }
+.xfeedfilter-metrics-scatter-guide-label { fill: var(--x-color-dim); font-size: 8px; dominant-baseline: hanging; }
+.xfeedfilter-metrics-scatter-x-label { fill: var(--x-color-dim); font-size: 8px; text-anchor: middle; }
+.xfeedfilter-metrics-scatter-y-label { fill: var(--x-color-dim); font-size: 8px; text-anchor: end; dominant-baseline: central; }
+.xfeedfilter-metrics-scatter-axis-title { fill: var(--x-color-dim); font-size: 8px; text-anchor: middle; }
+.xfeedfilter-metrics-scatter-point { stroke: var(--x-color-bg-raised); stroke-width: 1; }
+.xfeedfilter-metrics-scatter-point-label { fill: var(--x-color-dim); font-size: 8px; }
+.xfeedfilter-metrics-scatter-point-label--pinned { fill: var(--x-color-text); font-weight: 600; }
+.xfeedfilter-metrics-scatter-leader { stroke: var(--x-color-dim); stroke-opacity: 0.5; stroke-width: 1; }
+`;
+
+function setupChartInteractions() {
+  const section = document.querySelector(".xf-chart-section");
+  if (!section) return;
+  const tooltip = section.querySelector(".xf-chart-tooltip");
+  const svg = section.querySelector(".xfeedfilter-metrics-scatter");
+  if (!svg || !tooltip) return;
+  let currentMode = "reach";
+  let currentScale = "log";
+  let currentLabels = false;
+  let isExpanded = false;
+  const pinned = new Set();
+
+  attachInteraction(svg, tooltip, {
+    selector: "circle[data-handle]",
+    highlight: (el) => {
+      el.style.stroke = "var(--x-color-text)";
+      el.style.strokeWidth = "3";
+    },
+    unhighlight: (el) => {
+      el.style.stroke = "";
+      el.style.strokeWidth = "";
+    },
+    renderTooltip: (el) => partyTooltipHtml(el, currentMode),
+    onClick: (el) => {
+      const handle = el.getAttribute("data-handle");
+      if (!handle) return;
+      if (pinned.has(handle)) pinned.delete(handle);
+      else pinned.add(handle);
+      renderChart();
+    },
+  });
+
+  svg.addEventListener("dblclick", (e) => {
+    const el = e.target.closest("circle[data-handle]");
+    const handle = el && el.getAttribute("data-handle");
+    if (handle) window.open("https://x.com/" + encodeURIComponent(handle), "_blank", "noopener");
+  });
+
+  const EXPANDED = { W: 1000, H: 520, padL: 90, padR: 30, padT: 18, padB: 58 };
+  const models = window._partyModels;
+  const renderChart = () => {
+    const geo = isExpanded ? EXPANDED : SCATTER_LAYOUT;
+    svg.innerHTML = partySvgInner(models[currentMode], currentMode, currentScale, geo.W, geo.H, geo.padL, geo.padR, geo.padT, geo.padB, currentLabels, pinned, isExpanded);
+    document.getElementById("xf-chart-footnote").textContent = FOOTNOTES[currentMode];
+  };
+  const modeBtns = section.querySelectorAll(".xf-toggle-btn[data-mode]");
+  for (const btn of modeBtns) {
+    btn.addEventListener("click", () => {
+      const mode = btn.getAttribute("data-mode");
+      if (!mode || mode === currentMode) return;
+      currentMode = mode;
+      for (const b of modeBtns) b.classList.remove("xf-toggle-btn--active");
+      btn.classList.add("xf-toggle-btn--active");
+      renderChart();
+    });
+  }
+  const scaleBtns = section.querySelectorAll(".xf-toggle-btn[data-scale]");
+  for (const btn of scaleBtns) {
+    btn.addEventListener("click", () => {
+      const scale = btn.getAttribute("data-scale");
+      if (!scale || scale === currentScale) return;
+      currentScale = scale;
+      for (const b of scaleBtns) b.classList.remove("xf-toggle-btn--active");
+      btn.classList.add("xf-toggle-btn--active");
+      renderChart();
+    });
+  }
+  const labelBtns = section.querySelectorAll(".xf-toggle-btn[data-labels]");
+  for (const btn of labelBtns) {
+    btn.addEventListener("click", () => {
+      const on = btn.getAttribute("data-labels") === "on";
+      if (on === currentLabels) return;
+      currentLabels = on;
+      for (const b of labelBtns) b.classList.remove("xf-toggle-btn--active");
+      btn.classList.add("xf-toggle-btn--active");
+      renderChart();
+    });
+  }
+  const expandBtn = section.querySelector("#xf-party-expand-btn");
+  if (expandBtn) {
+    expandBtn.addEventListener("click", () => {
+      isExpanded = !isExpanded;
+      document.body.classList.toggle("xf-wide", isExpanded);
+      svg.classList.toggle("xf-scale-svg--expanded", isExpanded);
+      svg.setAttribute("viewBox", isExpanded ? "0 0 1000 520" : "0 0 500 260");
+      expandBtn.textContent = isExpanded ? "Shrink" : "Expand";
+      renderChart();
+    });
+  }
+  const zoomBtn = section.querySelector("#xf-party-zoom-btn");
+  if (zoomBtn) {
+    zoomBtn.addEventListener("click", () => {
+      try {
+        const geo = ZOOM;
+        const inner = partySvgInner(models[currentMode], currentMode, currentScale, geo.W, geo.H, geo.padL, geo.padR, geo.padT, geo.padB, true, pinned, true);
+        const markup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${geo.W} ${geo.H}" width="${geo.W}" height="${geo.H}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <style>${ZOOM_SVG_STYLE}</style>
+  <rect x="0" y="0" width="${geo.W}" height="${geo.H}" fill="#000"/>
+  ${inner}
+</svg>`;
+        const svgUrl = URL.createObjectURL(new Blob([markup], { type: "image/svg+xml;charset=utf-8" }));
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            canvas.width = geo.W * 2;
+            canvas.height = geo.H * 2;
+            const ctx = canvas.getContext("2d");
+            ctx.scale(2, 2);
+            ctx.drawImage(img, 0, 0, geo.W, geo.H);
+            canvas.toBlob((pngBlob) => {
+              if (pngBlob) window.open(URL.createObjectURL(pngBlob), "_blank", "noopener");
+              else alert("Zoom capture failed: PNG encoding error.");
+              URL.revokeObjectURL(svgUrl);
+            }, "image/png");
+          } catch (err) {
+            alert("Zoom capture failed: " + err.message);
+            URL.revokeObjectURL(svgUrl);
+          }
+        };
+        img.onerror = () => {
+          alert("Zoom capture failed: could not rasterize the chart SVG.");
+          URL.revokeObjectURL(svgUrl);
+        };
+        img.src = svgUrl;
+      } catch (err) {
+        alert("Zoom capture failed: " + err.message);
+      }
+    });
+  }
+}
+
+function setupFettermanChartInteractions() {
+  const section = document.querySelector(".xf-fetterman-section");
+  if (!section) return;
+  const tooltip = section.querySelector(".xf-chart-tooltip");
+  const svg = section.querySelector(".xfeedfilter-metrics-scatter");
+  if (!svg || !tooltip) return;
+  const pinned = new Set();
+  const { W, H, padL, padR, padT, padB } = SCATTER_LAYOUT;
+  const model = window._partyModels.impact;
+  const outlier = window._fettermanOutlier;
+  if (!model || !outlier) return;
+
+  const renderChart = () => {
+    svg.innerHTML = partySvgInner(model, "impact", "log", W, H, padL, padR, padT, padB, true, pinned, false, outlier.yellowHandles);
+  };
+
+  attachInteraction(svg, tooltip, {
+    selector: "circle[data-handle]",
+    highlight: (el) => {
+      el.style.stroke = "var(--x-color-text)";
+      el.style.strokeWidth = "3";
+    },
+    unhighlight: (el) => {
+      el.style.stroke = "";
+      el.style.strokeWidth = "";
+    },
+    renderTooltip: (el) => partyTooltipHtml(el, "impact"),
+    onClick: (el) => {
+      const handle = el.getAttribute("data-handle");
+      if (!handle) return;
+      if (pinned.has(handle)) pinned.delete(handle);
+      else pinned.add(handle);
+      renderChart();
+    },
+  });
+
+  svg.addEventListener("dblclick", (e) => {
+    const el = e.target.closest("circle[data-handle]");
+    const handle = el && el.getAttribute("data-handle");
+    if (handle) window.open("https://x.com/" + encodeURIComponent(handle), "_blank", "noopener");
+  });
+}
+
+/* ==========================================================================
+   CHART 2 - Freedom index vs. engagement (X = Freedom Index score, linear 0-100)
+   ========================================================================== */
+function buildFreedomMapModel(profiles) {
+  const points = [];
+  let skipped = 0;
+
+  for (const p of profiles) {
+    if (p.followers > 0 && p.freedomIndex !== null && p.medViewRate > 0 && p.medEngRate > 0 &&
+        isFinite(p.followers) && isFinite(p.medViewRate) && isFinite(p.medEngRate)) {
+      points.push({
+        handle: p.handle,
+        followers: p.followers,
+        freedomIndex: p.freedomIndex,
+        medEngVolume: p.medEngVolume,
+        medViewRate: p.medViewRate,
+        medEngRate: p.medEngRate,
+        top20: p.top20,
+        party: p.party,
+        senName: p.senName,
+        senState: p.senState,
+      });
+    } else {
+      skipped++;
+    }
+  }
+
+  const n = points.length;
+  if (n === 0) {
+    return { points, n: 0, xMin: 0, xMax: 100, yMin: 0, yMax: 4, skipped };
+  }
+
+  return { points, n, xMin: 0, xMax: 100, yMin: 0, yMax: 4, skipped };
+}
+
+function linearGridHtml(sx, sy, xTicks, yTicks, padL, padT, plotW, plotH) {
+  let h = "";
+  for (const v of xTicks) { const px = sx(v); h += `<line x1="${px.toFixed(1)}" y1="${padT}" x2="${px.toFixed(1)}" y2="${(padT + plotH)}" class="xfeedfilter-metrics-scatter-grid"/>`; }
+  for (const v of yTicks) { const py = sy(v); h += `<line x1="${padL}" y1="${py.toFixed(1)}" x2="${(padL + plotW)}" y2="${py.toFixed(1)}" class="xfeedfilter-metrics-scatter-grid"/>`; }
+  return h;
+}
+
+function mixedGridHtml(sx, sy, xTicks, yTicks, padL, padT, plotW, plotH, xLog, yLog) {
+  let h = "";
+  for (const v of xTicks) { const px = xLog ? sx(Math.log10(v)) : sx(v); h += `<line x1="${px.toFixed(1)}" y1="${padT}" x2="${px.toFixed(1)}" y2="${(padT + plotH)}" class="xfeedfilter-metrics-scatter-grid"/>`; }
+  for (const v of yTicks) { const py = yLog ? sy(Math.log10(v)) : sy(v); h += `<line x1="${padL}" y1="${py.toFixed(1)}" x2="${(padL + plotW)}" y2="${py.toFixed(1)}" class="xfeedfilter-metrics-scatter-grid"/>`; }
+  return h;
+}
+
+function freedomXLabelHtml(sx, xTicks, padT, plotH) {
+  let h = "";
+  for (const v of xTicks) { const px = sx(v); h += `<text x="${px.toFixed(1)}" y="${(padT + plotH + 18)}" class="xfeedfilter-metrics-scatter-x-label">${v}</text>`; }
+  return h;
+}
+
+function linearYLabelHtml(sy, yTicks, padL, fmt, off) {
+  let h = "";
+  for (const v of yTicks) { const py = sy(v); h += `<text x="${(padL - 8 * (off || 1))}" y="${(py + 4)}" class="xfeedfilter-metrics-scatter-y-label">${fmt(v)}</text>`; }
+  return h;
+}
+
+function niceStep(span) {
+  if (span <= 0) return 1;
+  const pow = Math.pow(10, Math.floor(Math.log10(span)));
+  const norm = span / pow;
+  return (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * pow;
+}
+
+const ENGAGEMENT_Y = {
+  viewrate: { key: "medViewRate", label: "Med view rate (%)", button: "View rate/flw" },
+  engrate: { key: "medEngRate", label: "Med eng rate (%)", button: "Eng rate/view" },
+};
+
+function engagementSvgInner(data, mode, W, H, padL, padR, padT, padB) {
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const sx = (x) => padL + (x - data.xMin) / (data.xMax - data.xMin) * plotW;
+
+  const yKey = ENGAGEMENT_Y[mode].key;
+  const yMax = Math.max(...data.points.map(p => p[yKey]), 0) * 1.05 || 1;
+  const sy = (y) => padT + plotH - (y - 0) / (yMax - 0) * plotH;
+  const yStep = niceStep(yMax / 5);
+
+  const xTicks = linearTicks(data.xMin, data.xMax, 20);
+  const yTicks = linearTicks(0, yMax, yStep);
+
+  let h = "";
+  h += linearGridHtml(sx, sy, xTicks, yTicks, padL, padT, plotW, plotH);
+  h += linearYLabelHtml(sy, yTicks, padL, fmtPct);
+  h += freedomXLabelHtml(sx, xTicks, padT, plotH);
+
+  const medScore = median(data.points.map(p => p.freedomIndex));
+  const mx = sx(medScore);
+  h += `<line x1="${mx.toFixed(1)}" y1="${padT}" x2="${mx.toFixed(1)}" y2="${(padT + plotH)}" class="xfeedfilter-metrics-scatter-guide"/>`;
+  h += `<text x="${mx.toFixed(1)}" y="${(padT + 6)}" class="xfeedfilter-metrics-scatter-guide-label" text-anchor="middle">median ${medScore}</text>`;
+
+  const r = data.points.length > 80 ? 3 : 5;
+  for (const p of data.points) {
+    const cx = sx(p.freedomIndex).toFixed(1);
+    const cy = sy(p[yKey]).toFixed(1);
+    const color = PARTY_COLOR[p.party] || "var(--x-color-chart-0)";
+    h += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" class="xfeedfilter-metrics-scatter-point"
+      data-handle="${escHtml(p.handle)}"
+      data-party="${escHtml(p.party)}"
+      data-senname="${escHtml(p.senName || "")}"
+      data-senstate="${escHtml(p.senState || "")}"
+      data-followers="${p.followers}"
+      data-fi="${p.freedomIndex}"
+      data-yval="${p[yKey]}"
+      data-medengvol="${p.medEngVolume}"
+      data-viewrate="${p.medViewRate}"
+      data-medengrate="${p.medEngRate}"
+      data-top20="${p.top20}"/>`;
+  }
+
+  h += svgAxisTitleXHtml(padL, plotW, padT, plotH, "Freedom Index score (0\u2013100)");
+  h += svgAxisTitleYHtml(padL, padT, plotH, ENGAGEMENT_Y[mode].label);
+
+  return h;
+}
+
+function engagementTooltipHtml(el) {
+  const handle = el.getAttribute("data-handle") || "";
+  const party = el.getAttribute("data-party") || "?";
+  const senName = el.getAttribute("data-senname") || "";
+  const senState = el.getAttribute("data-senstate") || "";
+  const followers = el.getAttribute("data-followers") || "0";
+  const fi = el.getAttribute("data-fi") || "0";
+  const medEngVol = el.getAttribute("data-medengvol") || "0";
+  const medEngRate = el.getAttribute("data-medengrate") || "0";
+  const viewRate = el.getAttribute("data-viewrate") || "0";
+  const top20 = el.getAttribute("data-top20") || "0";
+
+  const fCount = parseFloat(followers);
+  const medEngVolNum = parseFloat(medEngVol);
+  const engPerFollower = fCount > 0 ? fmtPct((medEngVolNum / fCount) * 100, 2) : "-";
+  const partyColor = PARTY_COLOR[party] || "var(--x-color-dim)";
+  const nameHtml = senName ? `${escHtml(senName)}${senState ? " \u00b7 " + escHtml(senState) : ""}` : "\u2013";
+
+  return scatterTooltipHtml(`@${escHtml(handle)}`,
+    [{ label: "Senator", value: nameHtml },
+     { label: "Party", value: `<span style="color:${partyColor}">${escHtml(PARTY_LABEL[party] || party)}</span>` },
+     { label: "Freedom index", value: escHtml(String(fi)) }],
+    [{ label: "Med view rate", value: fmtPct(parseFloat(viewRate)) },
+     { label: "Med eng rate", value: fmtPct(parseFloat(medEngRate)) },
+     { label: "Med eng volume", value: fmtNum(medEngVolNum) },
+     { label: "Med eng/flw", value: engPerFollower }],
+    [{ label: "Hit concentration", value: fmtPct(parseFloat(top20), 0) },
+     { label: "Followers", value: fmtNum(fCount) }]
+  );
+}
+
+const ENGAGEMENT_FOOTNOTES = {
+  viewrate: `Each dot is one senator. X-axis = Freedom Index score (0\u2013100, linear; higher = the site rates more votes as pro-freedom). Y-axis = median view rate (median views \u00f7 followers, %). Dashed vertical line = cohort median score. Colors show party: blue = Democrat, red = Republican, gray = Independent (King ME, Sanders VT \u2013 both caucus with the Democrats). Hover any dot for details; click to open that senator on x.com. Source: freedomindex.us (119th Congress, Senate).`,
+  engrate: `Each dot is one senator. X-axis = Freedom Index score (0\u2013100, linear; higher = the site rates more votes as pro-freedom). Y-axis = median engagement rate (engagements \u00f7 views, %). Dashed vertical line = cohort median score. Colors show party: blue = Democrat, red = Republican, gray = Independent (King ME, Sanders VT \u2013 both caucus with the Democrats). Hover any dot for details; click to open that senator on x.com. Source: freedomindex.us (119th Congress, Senate).`,
+};
+
+function renderEngagementChartSection(model) {
+  const { W, H, padL, padR, padT, padB } = SCATTER_LAYOUT;
+  return `
+  <div class="xfeedfilter-metrics-section xf-engagement-section">
+    <h3 class="xfeedfilter-metrics-section-title">Freedom index vs. engagement</h3>
+    <p class="xfeedfilter-metrics-section-desc">
+      Plots each senator&rsquo;s Freedom Index score (per freedomindex.us) against how well their posts engage, toggle between views per follower and engagement per view.
+    </p>
+    <div class="xfeedfilter-metrics-toggle-group">
+      <button class="xf-toggle-btn xf-toggle-btn--active" data-mode="viewrate">View rate/flw</button>
+      <button class="xf-toggle-btn" data-mode="engrate">Eng rate/view</button>
+    </div>
+    <div class="xfeedfilter-metrics-scatter-wrap">
+      <svg viewBox="0 0 ${W} ${H}" class="xfeedfilter-metrics-scatter" role="img" aria-label="Scatter plot of freedom index score vs engagement rates, colored by party">
+        ${engagementSvgInner(model, "viewrate", W, H, padL, padR, padT, padB)}
+      </svg>
+      <div class="xf-engagement-tooltip xf-scatter-tooltip"></div>
+    </div>
+    ${partyLegendHtml()}
+    <details class="xfeedfilter-metrics-chart-defs">
+      <summary>Chart definitions</summary>
+      <p class="xfeedfilter-metrics-footnote" id="xf-engagement-footnote">${ENGAGEMENT_FOOTNOTES.viewrate}</p>
+    </details>
+  </div>`;
+}
+
+function setupEngagementChartInteractions() {
+  const section = document.querySelector(".xf-engagement-section");
+  if (!section) return;
+  const tooltip = section.querySelector(".xf-engagement-tooltip");
+  const svg = section.querySelector(".xfeedfilter-metrics-scatter");
+  if (!svg || !tooltip) return;
+  let currentMode = "viewrate";
+
+  attachInteraction(svg, tooltip, {
+    selector: "circle[data-handle]",
+    highlight: (el) => {
+      el.style.stroke = "var(--x-color-text)";
+      el.style.strokeWidth = "3";
+    },
+    unhighlight: (el) => {
+      el.style.stroke = "";
+      el.style.strokeWidth = "";
+    },
+    renderTooltip: (el) => engagementTooltipHtml(el),
+    onClick: (el) => {
+      const handle = el.getAttribute("data-handle");
+      if (handle) window.open("https://x.com/" + encodeURIComponent(handle), "_blank", "noopener");
+    },
+  });
+
+  const { W, H, padL, padR, padT, padB } = SCATTER_LAYOUT;
+  const model = window._freedomModel;
+  const btns = section.querySelectorAll(".xf-toggle-btn");
+  for (const btn of btns) {
+    btn.addEventListener("click", () => {
+      const mode = btn.getAttribute("data-mode");
+      if (!mode || mode === currentMode) return;
+      currentMode = mode;
+      for (const b of btns) b.classList.remove("xf-toggle-btn--active");
+      btn.classList.add("xf-toggle-btn--active");
+      svg.innerHTML = engagementSvgInner(model, mode, W, H, padL, padR, padT, padB);
+      document.getElementById("xf-engagement-footnote").textContent = ENGAGEMENT_FOOTNOTES[mode];
+    });
+  }
+}
+
+function renderApp() {
+  const raw = window._rawData;
+  const fileName = window._fileName || "";
+  const profiles = raw.map(buildProfileModel).map(attachParty);
+
+  const missingMeta = profiles.filter(p => p.party === "?");
+  const reach = buildReachScatterModel(profiles);
+  const impact = buildImpactMapModel(profiles);
+  window._partyModels = { reach, impact };
+
+  const partyCounts = {};
+  for (const p of profiles) partyCounts[p.party] = (partyCounts[p.party] || 0) + 1;
+  const medEngRateAll = median(profiles.map(p => p.medEngRate));
+  const medEngVolAll = median(profiles.map(p => p.medEngVolume));
+
+  let chartHtml;
+  if (profiles.length < 8) {
+    chartHtml = `
+    <div class="xfeedfilter-metrics-section">
+      <h3 class="xfeedfilter-metrics-section-title">Reach/Impact vs audience size</h3>
+      <p class="xfeedfilter-metrics-section-desc">Need ~8+ profiles to plot followers vs median views or engagement volume.</p>
+    </div>`;
+  } else if (reach.points.length < 5 || impact.points.length < 5) {
+    chartHtml = `
+    <div class="xfeedfilter-metrics-section">
+      <h3 class="xfeedfilter-metrics-section-title">Reach/Impact vs audience size</h3>
+      <p class="xfeedfilter-metrics-section-desc">Need ~5+ valid points (followers &gt; 0 and med views/eng volume &gt; 0).</p>
+    </div>`;
+  } else {
+    chartHtml = renderChartSection(reach, impact);
+  }
+
+  const fettermanOutlier = impact.points.length > 0 ? fettermanOutlierSet(impact) : null;
+  window._fettermanOutlier = fettermanOutlier;
+  const fettermanChartHtml = fettermanOutlier ? renderFettermanChartSection(impact, fettermanOutlier) : "";
+
+  const freedom = buildFreedomMapModel(profiles);
+  window._freedomModel = freedom;
+  let freedomChartHtml;
+  if (profiles.length < 8) {
+    freedomChartHtml = `
+    <div class="xfeedfilter-metrics-section">
+      <h3 class="xfeedfilter-metrics-section-title">Freedom index vs. engagement</h3>
+      <p class="xfeedfilter-metrics-section-desc">Need ~8+ profiles to plot freedom score vs engagement rates.</p>
+    </div>`;
+  } else if (freedom.points.length < 5) {
+    freedomChartHtml = `
+    <div class="xfeedfilter-metrics-section">
+      <h3 class="xfeedfilter-metrics-section-title">Freedom index vs. engagement</h3>
+      <p class="xfeedfilter-metrics-section-desc">Need ~5+ valid points (freedom score present, engagement rates &gt; 0).</p>
+    </div>`;
+  } else {
+    freedomChartHtml = renderEngagementChartSection(freedom);
+  }
+
+
+  const missingNote = missingMeta.length > 0
+    ? ` <span class="xfeedfilter-metrics-muted">(\u00a7 ${missingMeta.map(p => "@" + p.handle).join(", ")} not found in metadata)</span>`
+    : "";
+
+  const missingFreedom = profiles.filter(p => p.freedomIndex === null);
+  const freedomNote = missingFreedom.length > 0
+    ? ` <span class="xfeedfilter-metrics-muted">(\u00a7 ${missingFreedom.map(p => "@" + p.handle).join(", ")} missing freedom index)</span>`
+    : "";
+
+
+  document.getElementById("app").innerHTML = `
+    <div class="chip file-badge">${escHtml(fileName)} <span class="xfeedfilter-metrics-muted">\u00b7</span> ${escHtml(window._metaFileName || "")} <span class="xfeedfilter-metrics-muted">\u00b7</span> ${profiles.length} profiles \u00b7 last \u2264${TARGET_POST_COUNT} posts each${collectionPeriodNote(profiles)}</div>
+    <div class="xfeedfilter-metrics-cards">
+      <div class="xfeedfilter-metrics-card">
+        <div class="xfeedfilter-metrics-card-value">${profiles.length}</div>
+        <div class="xfeedfilter-metrics-card-label">Senators</div>
+      </div>
+      <div class="xfeedfilter-metrics-card">
+        <div class="xfeedfilter-metrics-card-value" style="color:var(--x-color-red)">${partyCounts.R || 0}</div>
+        <div class="xfeedfilter-metrics-card-label">Republican</div>
+      </div>
+      <div class="xfeedfilter-metrics-card">
+        <div class="xfeedfilter-metrics-card-value" style="color:var(--x-color-accent)">${partyCounts.D || 0}</div>
+        <div class="xfeedfilter-metrics-card-label">Democrat</div>
+      </div>
+      <div class="xfeedfilter-metrics-card">
+        <div class="xfeedfilter-metrics-card-value" style="color:var(--x-color-chart-0)">${partyCounts.I || 0}</div>
+        <div class="xfeedfilter-metrics-card-label">Independent</div>
+      </div>
+      <div class="xfeedfilter-metrics-card">
+        <div class="xfeedfilter-metrics-card-value">${fmtPct(medEngRateAll)}</div>
+        <div class="xfeedfilter-metrics-card-label">Median eng rate</div>
+      </div>
+      <div class="xfeedfilter-metrics-card">
+        <div class="xfeedfilter-metrics-card-value">${fmtNum(medEngVolAll)}</div>
+        <div class="xfeedfilter-metrics-card-label">Median eng volume</div>
+      </div>
+    </div>
+    ${chartHtml}
+    ${fettermanChartHtml}
+    ${freedomChartHtml}
+    ${renderPartyTable(profiles)}
+    <div class="xfeedfilter-metrics-section">
+      <h3 class="xfeedfilter-metrics-section-title">Notes</h3>
+      <p class="xfeedfilter-metrics-footnote">
+        Primary stats are <strong>medians</strong>. Party metadata from <code>senators-metadata.json</code>, cross-checked against senate.gov
+        (119th Congress: 53 R / 45 D / 2 I). Freedom Index scores from freedomindex.us (119th Congress, Senate session).
+        ${missingNote}${freedomNote}
+        Metric calculations are ported 1:1 from <code>x-browser-extension</code>, so values match what the extension's Cohort Patterns view computes for the same export.
+      </p>
+    </div>`;
+
+  setupChartInteractions();
+  setupFettermanChartInteractions();
+  setupEngagementChartInteractions();
+
+  document.getElementById("page-footer").style.display = "";
+  document.getElementById("page-footer").innerHTML =
+    `Metric pipeline ported from <code>x-browser-extension</code> (profile-stats, scatter-models, svg-scatter, interactions). ` +
+    `Chart variations: "Reach/Impact" colored by political party; "Freedom index vs. engagement" (freedomindex.us). Israel Lobby vs freedom chart moved to political-freedom.html.`;
+}
+
+/* ==========================================================================
+   FILE LOADING
+   ========================================================================== */
+
+function parseProfiles(jsonText) {
+  const obj = JSON.parse(jsonText);
+  let arr;
+  if (Array.isArray(obj)) {
+    arr = obj;
+  } else if (obj && typeof obj === "object") {
+    arr = Object.entries(obj).map(([key, v]) => {
+      if (!v || typeof v !== "object") return null;
+      return v.handle ? v : Object.assign({}, v, { handle: key });
+    }).filter(Boolean);
+  } else {
+    throw new Error("JSON root must be an array of profiles or an object keyed by handle.");
+  }
+  if (arr.length === 0) throw new Error("No profiles found in file.");
+  for (const p of arr) {
+    if (!p || typeof p.handle !== "string" ||
+        typeof p.followers !== "number" ||
+        !Array.isArray(p.postLikes) || !Array.isArray(p.postViews) ||
+        !Array.isArray(p.postFlags) || !Array.isArray(p.postIds)) {
+      throw new Error("Not a profile-stats export: expected per-profile handle, followers, and postLikes/postViews/postFlags/postIds arrays.");
+    }
+  }
+  return arr;
+}
+
+function promptLoad() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json,application/json";
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = parseProfiles(text);
+      window._rawData = data;
+      window._fileName = file.name;
+      render();
+      if (!SENATORS_META) promptLoadMeta();
+    } catch (err) {
+      alert("Failed to import profile data: " + err.message + "\nCheck the file format and try again.");
+    }
+  };
+  input.click();
+}
+
+function parseSenatorsMeta(jsonText) {
+  const obj = JSON.parse(jsonText);
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
+    throw new Error("Metadata must be a JSON object keyed by handle.");
+  }
+  const entries = Object.entries(obj);
+  if (entries.length === 0) throw new Error("No senators found in metadata file.");
+  for (const [handle, m] of entries) {
+    if (!m || typeof m !== "object" ||
+        typeof m.name !== "string" || !m.name ||
+        typeof m.state !== "string" || !/^[A-Z]{2}$/.test(m.state) ||
+        !["D", "R", "I"].includes(m.party)) {
+      throw new Error("Invalid metadata entry for @" + handle + ": expected name, state (XX), party (D/R/I).");
+    }
+    if (m.freedomIndex !== undefined && (typeof m.freedomIndex !== "number" || m.freedomIndex < 0 || m.freedomIndex > 100)) {
+      throw new Error("Invalid freedomIndex for @" + handle + " (expected a number 0-100).");
+    }
+    if (m.israelLobbyTotal !== undefined && (typeof m.israelLobbyTotal !== "number" || m.israelLobbyTotal < 0)) {
+      throw new Error("Invalid israelLobbyTotal for @" + handle + " (expected a non-negative number).");
+    }
+  }
+  return obj;
+}
+
+function promptLoadMeta() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json,application/json";
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      SENATORS_META = parseSenatorsMeta(text);
+      window._metaFileName = file.name;
+      render();
+    } catch (err) {
+      alert("Failed to import senator metadata: " + err.message + "\nCheck the file format and try again.");
+    }
+  };
+  input.click();
+}
+
+function render() {
+  const app = document.getElementById("app");
+  if (!window._rawData) {
+    app.innerHTML = `
+    <div class="empty-state">
+      <h2>Load the senators export</h2>
+      <p>Two files are needed: the senators profile-stats export (<code>x-filter-profile-stats-senators.json</code>) and the senator metadata (<code>senators-metadata.json</code>: names, states, parties, freedom index, Israel Lobby totals). You'll be prompted for both.</p>
+      <button class="page-btn" id="btn-pick">Choose metrics export file&hellip;</button>`;
+    document.getElementById("btn-pick").addEventListener("click", promptLoad);
+    return;
+  }
+  if (!SENATORS_META) {
+    app.innerHTML = `
+    <div class="empty-state">
+      <h2>Load senator metadata</h2>
+      <p>Metrics loaded from <code>${escHtml(window._fileName)}</code>. Pick <code>senators-metadata.json</code> to color points by party and enable the freedom-index and Israel Lobby axes.</p>
+      <button class="page-btn" id="btn-pick-meta">Choose metadata file&hellip;</button>`;
+    document.getElementById("btn-pick-meta").addEventListener("click", promptLoadMeta);
+    return;
+  }
+  renderApp();
+}
+
+document.getElementById("btn-metrics").addEventListener("click", promptLoad);
+document.getElementById("btn-meta").addEventListener("click", promptLoadMeta);
+
+document.getElementById("btn-theme").addEventListener("click", () => {
+  const root = document.documentElement;
+  root.dataset.theme = root.dataset.theme === "light" ? "dark" : "light";
+});
+
+/* Initial state - show loader state, then prompt for the export file. */
+render();
+window.setTimeout(promptLoad, 300);
+</script>
+</body>
+</html>

@@ -1,0 +1,702 @@
+{
+  "berniemoreno": {
+    "name": "Bernie Moreno",
+    "state": "OH",
+    "party": "R",
+    "freedomIndex": 75,
+    "israelLobbyTotal": 66112
+  },
+  "brianschatz": {
+    "name": "Brian Schatz",
+    "state": "HI",
+    "party": "D",
+    "freedomIndex": 9,
+    "israelLobbyTotal": 211632
+  },
+  "chriscoons": {
+    "name": "Chris Coons",
+    "state": "DE",
+    "party": "D",
+    "freedomIndex": 8,
+    "israelLobbyTotal": 592873
+  },
+  "chrismurphyct": {
+    "name": "Chris Murphy",
+    "state": "CT",
+    "party": "D",
+    "freedomIndex": 13,
+    "israelLobbyTotal": 133605
+  },
+  "chrisvanhollen": {
+    "name": "Chris Van Hollen",
+    "state": "MD",
+    "party": "D",
+    "freedomIndex": 16,
+    "israelLobbyTotal": 0
+  },
+  "chuckgrassley": {
+    "name": "Chuck Grassley",
+    "state": "IA",
+    "party": "R",
+    "freedomIndex": 61,
+    "israelLobbyTotal": 331397
+  },
+  "hawleymo": {
+    "name": "Josh Hawley",
+    "state": "MO",
+    "party": "R",
+    "freedomIndex": 75,
+    "israelLobbyTotal": 273535
+  },
+  "jerrymoran": {
+    "name": "Jerry Moran",
+    "state": "KS",
+    "party": "R",
+    "freedomIndex": 63,
+    "israelLobbyTotal": 163949
+  },
+  "jimjustice_wv": {
+    "name": "Jim Justice",
+    "state": "WV",
+    "party": "R",
+    "freedomIndex": 65,
+    "israelLobbyTotal": 11986
+  },
+  "johnboozman": {
+    "name": "John Boozman",
+    "state": "AR",
+    "party": "R",
+    "freedomIndex": 55,
+    "israelLobbyTotal": 191516
+  },
+  "johncornyn": {
+    "name": "John Cornyn",
+    "state": "TX",
+    "party": "R",
+    "freedomIndex": 63,
+    "israelLobbyTotal": 1079549
+  },
+  "leaderjohnthune": {
+    "name": "John Thune",
+    "state": "SD",
+    "party": "R",
+    "freedomIndex": 57,
+    "israelLobbyTotal": 314319
+  },
+  "lindseygrahamsc": {
+    "name": "Lindsey Graham",
+    "state": "SC",
+    "party": "R",
+    "freedomIndex": 57,
+    "israelLobbyTotal": 1022626
+  },
+  "lisamurkowski": {
+    "name": "Lisa Murkowski",
+    "state": "AK",
+    "party": "R",
+    "freedomIndex": 46,
+    "israelLobbyTotal": 265262
+  },
+  "markwarner": {
+    "name": "Mark Warner",
+    "state": "VA",
+    "party": "D",
+    "freedomIndex": 9,
+    "israelLobbyTotal": 809214
+  },
+  "marshablackburn": {
+    "name": "Marsha Blackburn",
+    "state": "TN",
+    "party": "R",
+    "freedomIndex": 67,
+    "israelLobbyTotal": 449882
+  },
+  "maziehirono": {
+    "name": "Mazie Hirono",
+    "state": "HI",
+    "party": "D",
+    "freedomIndex": 11,
+    "israelLobbyTotal": 32848
+  },
+  "mikecrapo": {
+    "name": "Mike Crapo",
+    "state": "ID",
+    "party": "R",
+    "freedomIndex": 68,
+    "israelLobbyTotal": 223977
+  },
+  "ossoff": {
+    "name": "Jon Ossoff",
+    "state": "GA",
+    "party": "D",
+    "freedomIndex": 3,
+    "israelLobbyTotal": 944739
+  },
+  "pattymurray": {
+    "name": "Patty Murray",
+    "state": "WA",
+    "party": "D",
+    "freedomIndex": 11,
+    "israelLobbyTotal": 524336
+  },
+  "rogermarshallmd": {
+    "name": "Roger Marshall",
+    "state": "KS",
+    "party": "R",
+    "freedomIndex": 74,
+    "israelLobbyTotal": 282556
+  },
+  "ronwyden": {
+    "name": "Ron Wyden",
+    "state": "OR",
+    "party": "D",
+    "freedomIndex": 15,
+    "israelLobbyTotal": 414693
+  },
+  "sen_alsobrooks": {
+    "name": "Angela Alsobrooks",
+    "state": "MD",
+    "party": "D",
+    "freedomIndex": 5,
+    "israelLobbyTotal": 246550
+  },
+  "senadamschiff": {
+    "name": "Adam Schiff",
+    "state": "CA",
+    "party": "D",
+    "freedomIndex": 15,
+    "israelLobbyTotal": 5609345
+  },
+  "senalexpadilla": {
+    "name": "Alex Padilla",
+    "state": "CA",
+    "party": "D",
+    "freedomIndex": 1,
+    "israelLobbyTotal": 104055
+  },
+  "senamyklobuchar": {
+    "name": "Amy Klobuchar",
+    "state": "MN",
+    "party": "D",
+    "freedomIndex": 9,
+    "israelLobbyTotal": 443272
+  },
+  "senangusking": {
+    "name": "Angus King",
+    "state": "ME",
+    "party": "I",
+    "freedomIndex": 11,
+    "israelLobbyTotal": 206555
+  },
+  "senashleymoody": {
+    "name": "Ashley Moody",
+    "state": "FL",
+    "party": "R",
+    "freedomIndex": 75,
+    "israelLobbyTotal": 152647
+  },
+  "senatorandykim": {
+    "name": "Andy Kim",
+    "state": "NJ",
+    "party": "D",
+    "freedomIndex": 4,
+    "israelLobbyTotal": 514769
+  },
+  "senatorbaldwin": {
+    "name": "Tammy Baldwin",
+    "state": "WI",
+    "party": "D",
+    "freedomIndex": 21,
+    "israelLobbyTotal": 789706
+  },
+  "senatorbanks": {
+    "name": "Jim Banks",
+    "state": "IN",
+    "party": "R",
+    "freedomIndex": 75,
+    "israelLobbyTotal": 355651
+  },
+  "senatorbennet": {
+    "name": "Michael Bennet",
+    "state": "CO",
+    "party": "D",
+    "freedomIndex": 11,
+    "israelLobbyTotal": 357996
+  },
+  "senatorcantwell": {
+    "name": "Maria Cantwell",
+    "state": "WA",
+    "party": "D",
+    "freedomIndex": 12,
+    "israelLobbyTotal": 392039
+  },
+  "senatorcollins": {
+    "name": "Susan Collins",
+    "state": "ME",
+    "party": "R",
+    "freedomIndex": 39,
+    "israelLobbyTotal": 2597354
+  },
+  "senatordurbin": {
+    "name": "Dick Durbin",
+    "state": "IL",
+    "party": "D",
+    "freedomIndex": 12,
+    "israelLobbyTotal": 641079
+  },
+  "senatorfischer": {
+    "name": "Deb Fischer",
+    "state": "NE",
+    "party": "R",
+    "freedomIndex": 62,
+    "israelLobbyTotal": 632220
+  },
+  "senatorhagerty": {
+    "name": "Bill Hagerty",
+    "state": "TN",
+    "party": "R",
+    "freedomIndex": 84,
+    "israelLobbyTotal": 137129
+  },
+  "senatorhassan": {
+    "name": "Maggie Hassan",
+    "state": "NH",
+    "party": "D",
+    "freedomIndex": 8,
+    "israelLobbyTotal": 760712
+  },
+  "senatorheinrich": {
+    "name": "Martin Heinrich",
+    "state": "NM",
+    "party": "D",
+    "freedomIndex": 11,
+    "israelLobbyTotal": 289007
+  },
+  "senatorhick": {
+    "name": "John Hickenlooper",
+    "state": "CO",
+    "party": "D",
+    "freedomIndex": 4,
+    "israelLobbyTotal": 615856
+  },
+  "senatorlankford": {
+    "name": "James Lankford",
+    "state": "OK",
+    "party": "R",
+    "freedomIndex": 67,
+    "israelLobbyTotal": 311655
+  },
+  "senatorlujan": {
+    "name": "Ben Ray Luján",
+    "state": "NM",
+    "party": "D",
+    "freedomIndex": 13,
+    "israelLobbyTotal": 96167
+  },
+  "senatorricketts": {
+    "name": "Pete Ricketts",
+    "state": "NE",
+    "party": "R",
+    "freedomIndex": 67,
+    "israelLobbyTotal": 372814
+  },
+  "senatorrisch": {
+    "name": "Jim Risch",
+    "state": "ID",
+    "party": "R",
+    "freedomIndex": 74,
+    "israelLobbyTotal": 730786
+  },
+  "senatorrounds": {
+    "name": "Mike Rounds",
+    "state": "SD",
+    "party": "R",
+    "freedomIndex": 52,
+    "israelLobbyTotal": 324380
+  },
+  "senatorshaheen": {
+    "name": "Jeanne Shaheen",
+    "state": "NH",
+    "party": "D",
+    "freedomIndex": 7,
+    "israelLobbyTotal": 533077
+  },
+  "senatorslotkin": {
+    "name": "Elissa Slotkin",
+    "state": "MI",
+    "party": "D",
+    "freedomIndex": 5,
+    "israelLobbyTotal": 517272
+  },
+  "senatortimscott": {
+    "name": "Tim Scott",
+    "state": "SC",
+    "party": "R",
+    "freedomIndex": 69,
+    "israelLobbyTotal": 249459
+  },
+  "senatorwarnock": {
+    "name": "Raphael Warnock",
+    "state": "GA",
+    "party": "D",
+    "freedomIndex": 3,
+    "israelLobbyTotal": 858927
+  },
+  "senatorwicker": {
+    "name": "Roger Wicker",
+    "state": "MS",
+    "party": "R",
+    "freedomIndex": 51,
+    "israelLobbyTotal": 533926
+  },
+  "senbillcassidy": {
+    "name": "Bill Cassidy",
+    "state": "LA",
+    "party": "R",
+    "freedomIndex": 61,
+    "israelLobbyTotal": 615305
+  },
+  "senblumenthal": {
+    "name": "Richard Blumenthal",
+    "state": "CT",
+    "party": "D",
+    "freedomIndex": 9,
+    "israelLobbyTotal": 326757
+  },
+  "senbooker": {
+    "name": "Cory Booker",
+    "state": "NJ",
+    "party": "D",
+    "freedomIndex": 12,
+    "israelLobbyTotal": 851721
+  },
+  "sencapito": {
+    "name": "Shelley Moore Capito",
+    "state": "WV",
+    "party": "R",
+    "freedomIndex": 47,
+    "israelLobbyTotal": 576200
+  },
+  "sencortezmasto": {
+    "name": "Catherine Cortez Masto",
+    "state": "NV",
+    "party": "D",
+    "freedomIndex": 9,
+    "israelLobbyTotal": 834443
+  },
+  "sendansullivan": {
+    "name": "Dan Sullivan",
+    "state": "AK",
+    "party": "R",
+    "freedomIndex": 56,
+    "israelLobbyTotal": 789874
+  },
+  "senduckworth": {
+    "name": "Tammy Duckworth",
+    "state": "IL",
+    "party": "D",
+    "freedomIndex": 9,
+    "israelLobbyTotal": 561821
+  },
+  "senericschmitt": {
+    "name": "Eric Schmitt",
+    "state": "MO",
+    "party": "R",
+    "freedomIndex": 85,
+    "israelLobbyTotal": 38079
+  },
+  "senfettermanpa": {
+    "name": "John Fetterman",
+    "state": "PA",
+    "party": "D",
+    "freedomIndex": 6,
+    "israelLobbyTotal": 487491
+  },
+  "sengarypeters": {
+    "name": "Gary Peters",
+    "state": "MI",
+    "party": "D",
+    "freedomIndex": 12,
+    "israelLobbyTotal": 502411
+  },
+  "sengillibrand": {
+    "name": "Kirsten Gillibrand",
+    "state": "NY",
+    "party": "D",
+    "freedomIndex": 12,
+    "israelLobbyTotal": 629057
+  },
+  "senhydesmith": {
+    "name": "Cindy Hyde-Smith",
+    "state": "MS",
+    "party": "R",
+    "freedomIndex": 57,
+    "israelLobbyTotal": 274855
+  },
+  "senjackreed": {
+    "name": "Jack Reed",
+    "state": "RI",
+    "party": "D",
+    "freedomIndex": 12,
+    "israelLobbyTotal": 421697
+  },
+  "senjackyrosen": {
+    "name": "Jacky Rosen",
+    "state": "NV",
+    "party": "D",
+    "freedomIndex": 10,
+    "israelLobbyTotal": 2264274
+  },
+  "senjeffmerkley": {
+    "name": "Jeff Merkley",
+    "state": "OR",
+    "party": "D",
+    "freedomIndex": 15,
+    "israelLobbyTotal": 0
+  },
+  "senjohnbarrasso": {
+    "name": "John Barrasso",
+    "state": "WY",
+    "party": "R",
+    "freedomIndex": 70,
+    "israelLobbyTotal": 693198
+  },
+  "senjohncurtis": {
+    "name": "John Curtis",
+    "state": "UT",
+    "party": "R",
+    "freedomIndex": 68,
+    "israelLobbyTotal": 67900
+  },
+  "senjohnhoeven": {
+    "name": "John Hoeven",
+    "state": "ND",
+    "party": "R",
+    "freedomIndex": 55,
+    "israelLobbyTotal": 314804
+  },
+  "senjohnkennedy": {
+    "name": "John Kennedy",
+    "state": "LA",
+    "party": "R",
+    "freedomIndex": 67,
+    "israelLobbyTotal": 113680
+  },
+  "senjonhusted": {
+    "name": "Jon Husted",
+    "state": "OH",
+    "party": "R",
+    "freedomIndex": 70,
+    "israelLobbyTotal": 368339
+  },
+  "senjoniernst": {
+    "name": "Joni Ernst",
+    "state": "IA",
+    "party": "R",
+    "freedomIndex": 59,
+    "israelLobbyTotal": 595161
+  },
+  "senkatiebritt": {
+    "name": "Katie Britt",
+    "state": "AL",
+    "party": "R",
+    "freedomIndex": 72,
+    "israelLobbyTotal": 106961
+  },
+  "senkevincramer": {
+    "name": "Kevin Cramer",
+    "state": "ND",
+    "party": "R",
+    "freedomIndex": 54,
+    "israelLobbyTotal": 364123
+  },
+  "senlbr": {
+    "name": "Lisa Blunt Rochester",
+    "state": "DE",
+    "party": "D",
+    "freedomIndex": 7,
+    "israelLobbyTotal": 63626
+  },
+  "senlummis": {
+    "name": "Cynthia Lummis",
+    "state": "WY",
+    "party": "R",
+    "freedomIndex": 82,
+    "israelLobbyTotal": 14795
+  },
+  "senmarkey": {
+    "name": "Ed Markey",
+    "state": "MA",
+    "party": "D",
+    "freedomIndex": 20,
+    "israelLobbyTotal": 67259
+  },
+  "senmarkkelly": {
+    "name": "Mark Kelly",
+    "state": "AZ",
+    "party": "D",
+    "freedomIndex": 4,
+    "israelLobbyTotal": 554054
+  },
+  "senmcconnell": {
+    "name": "Mitch McConnell",
+    "state": "KY",
+    "party": "R",
+    "freedomIndex": 57,
+    "israelLobbyTotal": 992646
+  },
+  "senmccormickpa": {
+    "name": "Dave McCormick",
+    "state": "PA",
+    "party": "R",
+    "freedomIndex": 65,
+    "israelLobbyTotal": 173074
+  },
+  "senmikelee": {
+    "name": "Mike Lee",
+    "state": "UT",
+    "party": "R",
+    "freedomIndex": 93,
+    "israelLobbyTotal": 292124
+  },
+  "senmullin": {
+    "name": "Markwayne Mullin",
+    "state": "OK",
+    "party": "R",
+    "freedomIndex": 67,
+    "israelLobbyTotal": 410140
+  },
+  "senpeterwelch": {
+    "name": "Peter Welch",
+    "state": "VT",
+    "party": "D",
+    "freedomIndex": 21,
+    "israelLobbyTotal": 0
+  },
+  "senrandpaul": {
+    "name": "Rand Paul",
+    "state": "KY",
+    "party": "R",
+    "freedomIndex": 96,
+    "israelLobbyTotal": 2000
+  },
+  "senrickscott": {
+    "name": "Rick Scott",
+    "state": "FL",
+    "party": "R",
+    "freedomIndex": 73,
+    "israelLobbyTotal": 574767
+  },
+  "senronjohnson": {
+    "name": "Ron Johnson",
+    "state": "WI",
+    "party": "R",
+    "freedomIndex": 72,
+    "israelLobbyTotal": 335142
+  },
+  "senrubengallego": {
+    "name": "Ruben Gallego",
+    "state": "AZ",
+    "party": "D",
+    "freedomIndex": 11,
+    "israelLobbyTotal": 141670
+  },
+  "sensanders": {
+    "name": "Bernie Sanders",
+    "state": "VT",
+    "party": "I",
+    "freedomIndex": 26,
+    "israelLobbyTotal": 0
+  },
+  "senschumer": {
+    "name": "Chuck Schumer",
+    "state": "NY",
+    "party": "D",
+    "freedomIndex": 13,
+    "israelLobbyTotal": 411980
+  },
+  "sentedbuddnc": {
+    "name": "Ted Budd",
+    "state": "NC",
+    "party": "R",
+    "freedomIndex": 77,
+    "israelLobbyTotal": 80136
+  },
+  "sentedcruz": {
+    "name": "Ted Cruz",
+    "state": "TX",
+    "party": "R",
+    "freedomIndex": 79,
+    "israelLobbyTotal": 1411545
+  },
+  "senthomtillis": {
+    "name": "Thom Tillis",
+    "state": "NC",
+    "party": "R",
+    "freedomIndex": 52,
+    "israelLobbyTotal": 405386
+  },
+  "sentimkaine": {
+    "name": "Tim Kaine",
+    "state": "VA",
+    "party": "D",
+    "freedomIndex": 9,
+    "israelLobbyTotal": 444106
+  },
+  "sentinasmith": {
+    "name": "Tina Smith",
+    "state": "MN",
+    "party": "D",
+    "freedomIndex": 8,
+    "israelLobbyTotal": 113794
+  },
+  "sentoddyoung": {
+    "name": "Todd Young",
+    "state": "IN",
+    "party": "R",
+    "freedomIndex": 54,
+    "israelLobbyTotal": 232249
+  },
+  "sentomcotton": {
+    "name": "Tom Cotton",
+    "state": "AR",
+    "party": "R",
+    "freedomIndex": 61,
+    "israelLobbyTotal": 1127943
+  },
+  "sentuberville": {
+    "name": "Tommy Tuberville",
+    "state": "AL",
+    "party": "R",
+    "freedomIndex": 86,
+    "israelLobbyTotal": 29184
+  },
+  "senwarren": {
+    "name": "Elizabeth Warren",
+    "state": "MA",
+    "party": "D",
+    "freedomIndex": 14,
+    "israelLobbyTotal": 30454
+  },
+  "senwhitehouse": {
+    "name": "Sheldon Whitehouse",
+    "state": "RI",
+    "party": "D",
+    "freedomIndex": 10,
+    "israelLobbyTotal": 410544
+  },
+  "stevedaines": {
+    "name": "Steve Daines",
+    "state": "MT",
+    "party": "R",
+    "freedomIndex": 68,
+    "israelLobbyTotal": 717245
+  },
+  "timsheehymt": {
+    "name": "Tim Sheehy",
+    "state": "MT",
+    "party": "R",
+    "freedomIndex": 70,
+    "israelLobbyTotal": 79253
+  }
+}
