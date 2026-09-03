@@ -395,6 +395,57 @@ body.xf-wide .page {
 .xfeedfilter-metrics-chart-defs[open] summary {
   margin-bottom: 6px;
 }
+.xfeedfilter-metrics-heat-svg {
+  max-width: 550px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 500 / 260;
+  display: block;
+  margin: 0 auto;
+  overflow: visible;
+}
+.xfeedfilter-metrics-heat-cell {
+  stroke: var(--x-color-border);
+  stroke-opacity: 0.6;
+  stroke-width: 0.5;
+  cursor: pointer;
+}
+.xfeedfilter-metrics-heat-cell--empty {
+  fill: var(--x-color-bg-raised);
+  opacity: 0.35;
+  cursor: default;
+}
+.xfeedfilter-metrics-heat-x-label {
+  fill: var(--x-color-dim);
+  font-size: 10px;
+  text-anchor: middle;
+}
+.xfeedfilter-metrics-heat-y-label {
+  fill: var(--x-color-dim);
+  font-size: 10px;
+  text-anchor: end;
+  dominant-baseline: central;
+}
+.xfeedfilter-metrics-heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--x-color-dim);
+  max-width: 550px;
+  margin: 10px auto 0;
+}
+.xfeedfilter-metrics-heat-legend-label { flex-shrink: 0; }
+.xfeedfilter-metrics-heat-legend-bar {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  border: 1px solid var(--x-color-border);
+  background: linear-gradient(to right,
+    color-mix(in srgb, var(--x-color-chart-3) 60%, var(--x-color-bg-raised)),
+    var(--x-color-bg-raised) 40%,
+    color-mix(in srgb, var(--x-color-chart-2) 60%, var(--x-color-bg-raised)));
+}
 .page-footer {
   margin-top: 32px;
   padding-top: 16px;
@@ -1953,12 +2004,192 @@ function setupScaleChartInteractions() {
   }
 }
 
+/* ==========================================================================
+   POSTING-TIME HEATMAP
+   Performance = each post's engagement volume vs the posting account's own
+   mean engagement volume (1x = that account's average). Aggregated per
+   day x hour (UTC) as the mean of per-account medians.
+   ========================================================================== */
+
+const HEAT_LAYOUT = { W: 500, H: 260, padL: 44, padR: 14, padT: 12, padB: 34 };
+const HEAT_LO = 0;
+const HEAT_MID = 1;
+const HEAT_HI = 2.5;
+const HEAT_DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const HEAT_DAY_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function buildTimeHeatmapModel(profiles) {
+  const cells = [];
+  for (let d = 0; d < 7; d++) {
+    cells[d] = [];
+    for (let h = 0; h < 24; h++) cells[d][h] = { posts: 0, byAccount: new Map() };
+  }
+
+  let totalPosts = 0;
+  let accountsWithData = 0;
+
+  for (const p of profiles) {
+    const s = p.series;
+    if (!s || s.n === 0) continue;
+    const meanVol = mean(s.totalEng);
+    if (!(meanVol > 0) || !isFinite(meanVol)) continue;
+    accountsWithData++;
+    for (let i = 0; i < s.n; i++) {
+      const ts = s.timestamps[i];
+      if (!(ts > 0)) continue;
+      const dt = new Date(ts);
+      const cell = cells[dt.getDay()][dt.getHours()];
+      cell.posts++;
+      totalPosts++;
+      let arr = cell.byAccount.get(p.handle);
+      if (!arr) {
+        arr = [];
+        cell.byAccount.set(p.handle, arr);
+      }
+      arr.push(s.totalEng[i] / meanVol);
+    }
+  }
+
+  for (let d = 0; d < 7; d++) {
+    for (let h = 0; h < 24; h++) {
+      const c = cells[d][h];
+      const accMedians = [];
+      for (const arr of c.byAccount.values()) accMedians.push(median(arr));
+      c.value = accMedians.length > 0 ? mean(accMedians) : null;
+      c.accounts = accMedians.length;
+      delete c.byAccount;
+    }
+  }
+
+  return { cells, totalPosts, accountsWithData };
+}
+
+function heatColor(ratio) {
+  if (ratio >= HEAT_MID) {
+    const t = clamp((ratio - HEAT_MID) / (HEAT_HI - HEAT_MID), 0, 1);
+    return `color-mix(in srgb, var(--x-color-chart-2) ${(60 * t).toFixed(0)}%, var(--x-color-bg-raised))`;
+  }
+  const t = clamp((HEAT_MID - ratio) / (HEAT_MID - HEAT_LO), 0, 1);
+  return `color-mix(in srgb, var(--x-color-chart-3) ${(60 * t).toFixed(0)}%, var(--x-color-bg-raised))`;
+}
+
+function heatmapSvgInner(model, W, H, padL, padR, padT, padB) {
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const cellW = plotW / 24;
+  const cellH = plotH / 7;
+
+  let h = "";
+  for (let d = 0; d < 7; d++) {
+    for (let ho = 0; ho < 24; ho++) {
+      const c = model.cells[d][ho];
+      const x = padL + ho * cellW;
+      const y = padT + d * cellH;
+      if (c.value === null) {
+        h += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(cellW - 1).toFixed(1)}" height="${(cellH - 1).toFixed(1)}" rx="2" class="xfeedfilter-metrics-heat-cell xfeedfilter-metrics-heat-cell--empty"/>`;
+        continue;
+      }
+      h += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(cellW - 1).toFixed(1)}" height="${(cellH - 1).toFixed(1)}" rx="2" style="fill:${heatColor(c.value)}" class="xfeedfilter-metrics-heat-cell"
+        data-day="${d}" data-hour="${ho}" data-ratio="${c.value.toFixed(3)}" data-posts="${c.posts}" data-accounts="${c.accounts}"/>`;
+    }
+  }
+
+  for (let d = 0; d < 7; d++) {
+    h += `<text x="${(padL - 6).toFixed(1)}" y="${(padT + d * cellH + cellH / 2).toFixed(1)}" class="xfeedfilter-metrics-heat-y-label">${HEAT_DAY_SHORT[d]}</text>`;
+  }
+  for (let ho = 0; ho < 24; ho += 3) {
+    h += `<text x="${(padL + (ho + 0.5) * cellW).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" class="xfeedfilter-metrics-heat-x-label">${String(ho).padStart(2, "0")}</text>`;
+  }
+  h += `<text x="${(padL + plotW / 2).toFixed(1)}" y="${(padT + plotH + 29).toFixed(1)}" class="xfeedfilter-metrics-scatter-axis-title">Hour (local)</text>`;
+
+  return h;
+}
+
+function heatLegendHtml() {
+  return `<div class="xfeedfilter-metrics-heat-legend">
+    <span class="xfeedfilter-metrics-heat-legend-label">0\u00d7</span>
+    <div class="xfeedfilter-metrics-heat-legend-bar" role="img" aria-label="Color scale: below average to above average"></div>
+    <span class="xfeedfilter-metrics-heat-legend-label">1\u00d7 mean</span>
+    <span class="xfeedfilter-metrics-heat-legend-label">2.5\u00d7</span>
+  </div>`;
+}
+
+function heatTooltipHtml(el) {
+  const day = HEAT_DAY_LONG[parseInt(el.getAttribute("data-day"), 10)] || "";
+  const hour = parseInt(el.getAttribute("data-hour"), 10);
+  const ratio = parseFloat(el.getAttribute("data-ratio"));
+  const posts = parseInt(el.getAttribute("data-posts"), 10);
+  const accounts = parseInt(el.getAttribute("data-accounts"), 10);
+  return scatterTooltipHtml(`${escHtml(day)} \u00b7 ${String(hour).padStart(2, "0")}:00\u2013${String(hour + 1).padStart(2, "0")}:00`,
+    [
+      { label: "Eng volume vs mean", value: ratio.toFixed(2) + "\u00d7" },
+      { label: "Posts", value: fmtNum(posts) },
+      { label: "Accounts", value: fmtNum(accounts) },
+    ]
+  );
+}
+
+const HEATMAP_FOOTNOTE = `Each cell is one hour of one weekday in the browser's local time zone. Heat intensity shows engagement volume relative to each posting account's own mean engagement volume: green = above the account's average, pink = below, gray = at average. The cell value is the mean across accounts of each account's median ratio in that cell, so each account counts once and heavy posters don't dominate. Ratios are clamped to the 0\u20132.5\u00d7 range for color scaling.`;
+
+function renderHeatmapSection(model) {
+  const { W, H, padL, padR, padT, padB } = HEAT_LAYOUT;
+
+  if (model.totalPosts === 0) {
+    return `
+    <div class="xfeedfilter-metrics-section">
+      <h3 class="xfeedfilter-metrics-section-title">Performance by posting time</h3>
+      <p class="xfeedfilter-metrics-section-desc">Need posts with valid timestamps and accounts with non-zero mean engagement volume.</p>
+    </div>`;
+  }
+
+  return `
+  <div class="xfeedfilter-metrics-section xf-heat-section">
+    <h3 class="xfeedfilter-metrics-section-title">Performance by posting time</h3>
+    <p class="xfeedfilter-metrics-section-desc">
+      Heat intensity = each post's engagement volume vs the posting account's own mean engagement volume (1\u00d7 = that account's average), aggregated per day/hour as the mean of per-account medians. Day and hour are browser-local time. <span class="xfeedfilter-metrics-muted">\u00b7</span> ${fmtNum(model.totalPosts)} posts <span class="xfeedfilter-metrics-muted">\u00b7</span> ${fmtNum(model.accountsWithData)} accounts
+    </p>
+    <div class="xfeedfilter-metrics-scatter-wrap">
+      <svg viewBox="0 0 ${W} ${H}" class="xfeedfilter-metrics-heat-svg" role="img" aria-label="Heatmap of engagement volume relative to each account's mean, by day of week and hour of day (browser-local time)">
+        ${heatmapSvgInner(model, W, H, padL, padR, padT, padB)}
+      </svg>
+      <div class="xf-chart-tooltip xf-scatter-tooltip"></div>
+    </div>
+    ${heatLegendHtml()}
+    <details class="xfeedfilter-metrics-chart-defs">
+      <summary>Chart definitions</summary>
+      <p class="xfeedfilter-metrics-footnote" id="xf-heat-chart-footnote">${HEATMAP_FOOTNOTE}</p>
+    </details>
+  </div>`;
+}
+
+function setupHeatmapInteractions() {
+  const section = document.querySelector(".xf-heat-section");
+  if (!section) return;
+  const tooltip = section.querySelector(".xf-chart-tooltip");
+  const svg = section.querySelector(".xfeedfilter-metrics-heat-svg");
+  if (!svg || !tooltip) return;
+
+  attachInteraction(svg, tooltip, {
+    selector: "rect[data-ratio]",
+    highlight: (el) => {
+      el.style.stroke = "var(--x-color-text)";
+      el.style.strokeWidth = "1.5";
+    },
+    unhighlight: (el) => {
+      el.style.stroke = "";
+      el.style.strokeWidth = "";
+    },
+    renderTooltip: (el) => heatTooltipHtml(el),
+  });
+}
+
 function renderApp() {
   const raw = window._rawData;
   const fileName = window._fileName || "";
   const profiles = raw.map(buildProfileModel);
   const reach = buildReachScatterModel(profiles);
   const impact = buildImpactMapModel(profiles);
+  const heat = buildTimeHeatmapModel(profiles);
   window._reachModel = reach;
   window._impactModel = impact;
 
@@ -1981,7 +2212,7 @@ function renderApp() {
       <p class="xfeedfilter-metrics-section-desc">Need ~5+ valid points (followers &gt; 0 and med eng volume &gt; 0).</p>
     </div>`;
   } else {
-    chartHtml = renderChartSection(impact) + renderScaleChartSection(reach, impact);
+    chartHtml = renderChartSection(impact) + renderScaleChartSection(reach, impact) + renderHeatmapSection(heat);
   }
 
   document.getElementById("app").innerHTML = `
@@ -2020,12 +2251,14 @@ function renderApp() {
 
   setupChartInteractions();
   setupScaleChartInteractions();
+  setupHeatmapInteractions();
 
   document.getElementById("page-footer").style.display = "";
   document.getElementById("page-footer").innerHTML =
     `Metric pipeline ported from <code>x-browser-extension</code> (profile-stats, scatter-models, svg-scatter, interactions). ` +
     `Chart variations: "By verification" colors points by isBlueVerified instead of follower band; ` +
-    `"Reach/Impact vs audience size - log/linear y-axis" restores the original Reach/Impact mode toggle and adds a log/linear y-scale toggle.`;
+    `"Reach/Impact vs audience size - log/linear y-axis" restores the original Reach/Impact mode toggle and adds a log/linear y-scale toggle; ` +
+    `"Performance by posting time" is a day x hour heatmap of engagement volume vs each account's own mean (browser-local time).`;
 }
 
 /* ==========================================================================
