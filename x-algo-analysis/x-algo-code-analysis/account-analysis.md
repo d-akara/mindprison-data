@@ -1,6 +1,6 @@
 # Why Some Accounts Are Seen and Others Aren't
 
-<!-- REVIEW-BASELINE repo=https://github.com/xai-org/x-algorithm.git rev=e1a0375a903899984545c663bb0bccb3cdcdf046 short=e1a0375 date=2026-10-13T08:05:54Z prev=85ac72a1bba41f21615e3f0bca56da75970a6633 range_commits=28 -->
+<!-- REVIEW-BASELINE repo=https://github.com/xai-org/x-algorithm.git rev=b55151777cd8901111c7b5985a724f671f05d2c4 short=b551517 date=2026-11-19T03:57:33Z prev=3b6919f87532e57063bb3f1e85c2f509323b513e range_commits=8 -->
 
 ### Explaining the anomalies in "A Mostly Incorrect Analysis of X Social Media Algorithms and Reach" using the now-open X algorithm code
 
@@ -8,7 +8,7 @@
 
 ## What this document is
 
-In August 2026, xAI published a much larger slice of the X recommendation algorithm than ever before (the "For You" feed: scoring weights, the visibility-filtering rules, the credibility system, the model training code, and more). Shortly before that, Dakara (Mind Prison) published [a data-driven article](https://www.mindprison.cc/p/mostly-incorrect-x-algorithm-reach-analysis) asking why some accounts — including several very large ones — get almost no reach, and why engagement seems to have little to do with it. On August 14th, 2026 a follow-up commit (`c65aa17`) added more: an official clarification of how the weights work, a Brazil 2026 election filter, new model input features, and threshold changes. Thirteen more commits through September 2nd, 2026 (`85ac72a`) moved weights and gates again (grox 30K→120K, VQV weight→0, dwell-prob head→0.05, MPN removal, Brazil 665→2,388, rankall 17/15 windows, Muon training, VF refactor, redacted bdsm count gate). Twenty-eight more commits through October 13th, 2026 (`e1a0375`) re-architected scoring (`xai-value-model/`, dwell-regret deleted), moved weights again (favorite 0.6, click-dwell 0.4, not-interested −47.52), rewrote cold start (50K/200/2h/97%, Thompson on), added a 19th filter + video carousel + two sources, expanded VF verdicts (tombstone/Article/age-prompt/limited-engagement), grew Brazil to 2,800, split grox gates at 250K, and added reply index windows. Everything here reflects the code as of that commit; Part 24 summarizes the August updates, **Part 25 the September ones, and Part 26 the October ones**, with the affected earlier parts updated in place.
+In August 2026, xAI published a much larger slice of the X recommendation algorithm than ever before (the "For You" feed: scoring weights, the visibility-filtering rules, the credibility system, the model training code, and more). Shortly before that, Dakara (Mind Prison) published [a data-driven article](https://www.mindprison.cc/p/mostly-incorrect-x-algorithm-reach-analysis) asking why some accounts — including several very large ones — get almost no reach, and why engagement seems to have little to do with it. On August 14th, 2026 a follow-up commit (`c65aa17`) added more: an official clarification of how the weights work, a Brazil 2026 election filter, new model input features, and threshold changes. Thirteen more commits through September 2nd, 2026 (`85ac72a`) moved weights and gates again (grox 30K→120K, VQV weight→0, dwell-prob head→0.05, MPN removal, Brazil 665→2,388, rankall 17/15 windows, Muon training, VF refactor, redacted bdsm count gate). Twenty-eight more commits through October 13th, 2026 (`e1a0375`) re-architected scoring (`xai-value-model/`, dwell-regret deleted), moved weights again (favorite 0.6, click-dwell 0.4, not-interested −47.52), rewrote cold start (50K/200/2h/97%, Thompson on), added a 19th filter + video carousel + two sources, expanded VF verdicts (tombstone/Article/age-prompt/limited-engagement), grew Brazil to 2,800, split grox gates at 250K, and added reply index windows. Nineteen more commits through November 7th, 2026 (`3b6919f`) moved weights (favorite 0.708, click 0.274, share 2.118, click-dwell 0.385, not-interested −53.07, **video-open → 0.0**), removed the Brazil filter, added a per-source fair-share budget and two filters, rebuilt the video carousel, rewrote visibility filtering as an action model (9 levels, 7 action kinds, FOSNR follower tiers, reaction-video blurs), and added user-debias + page-RL + head-guard machinery. Everything here reflects the code as of that commit; Part 24 summarizes the August updates, **Part 25 the September ones, Part 26 the October ones, and Part 27 the November ones**, with the affected earlier parts updated in place.
 
 This document attempts to explain the article's anomalies with what the open code actually does. It is written for readers who do not want to read Rust source code. Where the article made specific numerical claims, I checked them against the [raw datasets](https://github.com/d-akara/mindprison-data/tree/main/x-algo-analysis) before using them; every number quoted here that comes from the data was independently reproduced.
 
@@ -58,7 +58,7 @@ Three details make the trap airtight:
 
 **Verified — the article is almost exactly right.** nikitabier: 1.25M followers, median **1.02 million views per post** (81.6% of followers), median engagement **13,894** per post, median likes ~10,400. dawn_com: 1.38M followers, median 900 views, median engagement **2**, median likes 1. The ratio is **6,947×** — the median-*engagement* ratio (13,893.5 / 2); the median-views ratio is ~1,130×.
 
-**What's happening.** Two accounts of identical size, one a stone in a river, one carried by it. The difference is not the accounts' sizes but what the model has learned about what *happens when their posts are shown*. Nikita's posts generate replies, shares, and long dwell — and the scoring weights now published in the code show exactly which behaviors the system pays for. A **reply carries 10× a like's weight** (5.0 vs 0.5) — weight, not count-equivalence: every term is `weight × predicted probability`, and the large weights on rare actions (DM share 5, copy-link share 20) are inflated partly because those actions are rare, the same logic as report −234 (the platform's own clarification, and the VP of Product's Aug 15, 2026 post). A share via DM is 5, a share via copy-link is 20, a follow-after-seeing is worth 4, and every second of dwell time adds a small continuous bonus — each scaled by how likely the model thinks *this viewer* is to do it. Dawn's headline links generate none of these — their reply rate per view is ~4× lower than zerohedge's (0.007% vs 0.027%) and ~18× lower than Nikita's (0.007% vs 0.13%).
+**What's happening.** Two accounts of identical size, one a stone in a river, one carried by it. The difference is not the accounts' sizes but what the model has learned about what *happens when their posts are shown*. Nikita's posts generate replies, shares, and long dwell — and the scoring weights now published in the code show exactly which behaviors the system pays for. A **reply carries ~7× a like's weight** (5.0 vs 0.708 — it was ~10× when the like weight was 0.5) — weight, not count-equivalence: every term is `weight × predicted probability`, and the large weights on rare actions (DM share 5, copy-link share 20) are inflated partly because those actions are rare, the same logic as report −234 (the platform's own clarification, and the VP of Product's Aug 15, 2026 post). A share via DM is 5, a share via copy-link is 20, a follow-after-seeing is worth 4, and every second of dwell time adds a small continuous bonus — each scaled by how likely the model thinks *this viewer* is to do it. Dawn's headline links generate none of these — their reply rate per view is ~4× lower than zerohedge's (0.007% vs 0.027%) and ~18× lower than Nikita's (0.007% vs 0.13%).
 
 So the machine isn't unfair in a mysterious way; it is executing a very specific definition of value: *posts that make people reply, share, follow, and stay are worth showing*. One account triggers that definition every time; the other triggers it never. Both learned their states the same way — from their own history. That is also why the article's observation that dawn_com has a *flat* 0.07% delivery (no spikes, nothing) while Nikita's posts almost all do well is meaningful: flatness is the signature of an account-level state, not per-post luck. Per-post luck would produce occasional hits; an entrenched negative impression produces none.
 
@@ -93,7 +93,7 @@ Two further mechanisms help small accounts specifically:
 
 The model predicts things the public totals don't include:
 
-- **Predicted dwell time** — will this person spend 20 seconds or 2 seconds on this post? (The scoring pays 0.004 per second of predicted dwell — capped at ~30 seconds, so worth at most ~0.12 points — but it is a real, continuous signal that applies to every viewer.)
+- **Predicted dwell time** — will this person spend 20 seconds or 2 seconds on this post? (The scoring pays 0.0075 per second of predicted dwell — capped at ~30 seconds, so worth at most ~0.225 points — but it is a real, continuous signal that applies to every viewer.)
 - **Per-person reply and share probability** — not the aggregate rate, but the individual prediction for each viewer.
 - **Click-through and follow-through** — does the post pull people to the profile, and do they follow?
 - **Generalization** — "people similar to those who engaged with this author historically also engage with similar content" — the invisible cross-user patterns.
@@ -168,13 +168,13 @@ So the article's scatter chart makes sense: frequency is largely irrelevant to p
 
 The article's content findings all trace to specific, visible scoring decisions:
 
-**Videos get more reach.** Three mechanisms: dedicated video signals in the model (video-open probability — **0.07** since Sept — video-quality-view probability — **weight now 0.0**, so discovery-signal only), a rule that only videos **10+ seconds** long generate the "video view" engagement signal that feeds discovery, and — most importantly — video posts stay eligible for out-of-network distribution **far longer** than text posts (text posts effectively age out in days; the code maintains "evergreen" video pools measured in *years*, plus Sept's new age-banded `1fav_video_*` slices to 30 days). Text is judged fresh-then-dead; video can keep circulating.
+**Videos get more reach — but now for structural reasons only.** Three mechanisms, one of which has been priced to zero: dedicated video signals in the model (video-open probability — **weight 0.0 since Nov; it was 0.07 in Sept and 0.02 in Oct** — and video-quality-view probability — **also 0.0**, so both feed only the implicit discovery signal), a rule that only videos **10+ seconds** long generate the "video view" engagement signal that feeds discovery, and — most importantly — video posts stay eligible for out-of-network distribution **far longer** than text posts (text posts effectively age out in days; the code maintains "evergreen" video pools measured in *years*, plus Sept's new age-banded `1fav_video_*` slices to 30 days and Nov's 6-hour SID windows). Text is judged fresh-then-dead; video can keep circulating — and on the video-carousel surface (still off by default) a separate immersive ranking model scores videos with its own cluster.
 
 **Photos get more engagement but fewer views.** The photo-expand signal is real but weakly weighted, and photos get no longevity bonus and no dedicated discovery pool. Photos please the people who already see them; they don't attract new ones.
 
 **URLs underperform — and the article is right that there's no link penalty.** The old Twitter code's news-link boost is gone; the current code's only link-related signal is a small open-link click weight (0.2) — no penalty, no boost. URL posts underperform for content-dynamics reasons: people click away (no dwell time, and dwell is paid), links rarely generate replies (and replies are the highest-value engagement), and the model judges the post by its text, not the destination. dawn_com (100% links, 0.07% delivery) vs zerohedge (75% links, 3.1%) vs nikitabier (1% links, 81.6%) shows the same format producing a ~48× gap — format isn't the differentiator; the learned account state is.
 
-**Articles get no special treatment — but they may deserve one.** X's native long-form Articles are *not* a distinct post type in the algorithm. There is no article flag anywhere in the feed path: the model's per-post inputs (tweet bools: reply/retweet/quote/media only; content embedding; SID; author) contain nothing article-specific, and there is no article weight, filter, retrieval pool, visibility rule, or even an Article bit in the served-metrics analytics bitset (the only "article" reference in the visibility service is an unused `is_article` method in a test mock). The one place articles appear is content understanding: grox feeds the title, cover and body media into the post's multimodal embedding (and therefore its SID) and tells its LLM classifiers the post is an article. So an Article is scored on its *content* — which is also why the 48-hour clock applies to it (no video-style evergreen pools) and why it can't earn video-only signals. The dataset's article posts (collector flag `IsArticle`) do over-deliver in aggregate — median views/follower 25.95% vs 9.65% for everything else — but that's 37 posts out of 10,000, 23 of them from one small account, so the cold-start boost and content quality explain it without any format boost. If long-form content engages, it gets amplified like anything else; the algorithm simply has no opinion about the format itself.
+**Articles get no scoring treatment — but they now have a visibility lifecycle.** X's native long-form Articles are *not* a distinct post type in the ranking model. There is no article flag in the model's per-post inputs (tweet bools: reply/retweet/quote/media only; content embedding; SID; author), no article weight, no retrieval pool, and no Article bit in the served-metrics analytics bitset. **Since Oct, the visibility service does read the article record** — it hydrates the article (lifecycle + media/cover) and applies `ARTICLE_TWEET_CONTENT_DROP_UNSPECIFIED`: **unpublished, draft, or soft-deleted articles are withheld** on the hydration path. That is a lifecycle gate, not a reach boost, and it is the only article-specific rule in the feed path. The other place articles appear is content understanding: grox feeds the title, cover and body media into the post's multimodal embedding (and therefore its SID) and tells its LLM classifiers the post is an article. So a published Article is scored on its *content* — which is also why the 48-hour clock applies to it (no video-style evergreen pools) and why it can't earn video-only signals. The dataset's article posts (collector flag `IsArticle`) do over-deliver in aggregate — median views/follower 25.95% vs 9.65% for everything else — but that's 37 posts out of 10,000, 23 of them from one small account, so the cold-start boost and content quality explain it without any format boost. If long-form content engages, it gets amplified like anything else; the algorithm simply has no opinion about the format itself.
 
 **Quotes transfer attention.** When you quote a post, the code explicitly scores "quoted-post clicks" — people click through to the original. Your quote gets the traffic; the original gets the engagement. And if the original is dropped by the safety gate, your quote can be dropped too (cascade rule). Quoting is a gift to the quoted.
 
@@ -200,11 +200,11 @@ If the code is the truth, here are the levers that exist — and the ones that d
 
 **Levers that exist (in rough order of strength):**
 
-1. **Make people reply.** Reply carries the highest *weight* of the common engagements (10× a like's weight — which means "10× a like's weight at equal predicted probability," not "10 likes' worth of score"; Part 2). Conversation-starting posts — questions, provocations, polls, things people want to argue with — are what the model is paid to find.
-2. **Make people stay — but know it's a small lever.** Dwell is a continuous head, but it's normalized and capped: the model's dwell prediction tops out around 30 seconds (a fixed ceiling in the model's output function), worth at most ~0.12 points — less than a quarter of a like. "Long dwell" is a real signal in the data, but the scoring weight is modest; replies and shares dwarf it.
+1. **Make people reply.** Reply carries the highest *weight* of the common engagements (**~7× a like's weight** — 5.0 vs 0.708 as of Nov — which means "7× a like's weight at equal predicted probability," not "7 likes' worth of score"; Part 2). Conversation-starting posts — questions, provocations, polls, things people want to argue with — are what the model is paid to find.
+2. **Make people stay — but know it's a modest lever.** Dwell is a continuous head, but it's normalized and capped: the model's dwell prediction tops out around 30 seconds (a fixed ceiling in the model's output function), worth at most ~0.225 points — about a third of a like. "Long dwell" is a real signal in the data, but the scoring weight is modest; replies and shares dwarf it. The larger continuous lever is **click-dwell (0.385)** — sustained reading *after* a click.
 3. **Make people share — especially via DM or copy-link.** The highest positive weights in the entire scoring table are on shares: copy-link shares (20), DM shares (5), regular shares (2). "This is worth sending to someone" is the strongest single signal in the system.
 4. **Get follow-backs.** Original posts from **mutual follows** get a huge bonus (the reply-weight boost) — and as of the August 14th update, the model itself also receives *both directions* of the follow relationship as per-token features (does the viewer follow this author, and does this author follow the viewer), so mutual-follow status shapes prediction directly, not just the post-hoc boost. If someone you follow follows you back, your original posts become worth far more to them — and to everyone, via the learned reputation.
-5. **Stay fresh and video-capable.** Posts older than 48 hours stop being candidates entirely; videos of 10+ seconds open up the video signal and the long-lived video distribution pools.
+5. **Stay fresh — and know what video actually buys.** Posts older than 48 hours stop being candidates entirely. Video of 10+ seconds opens the implicit "video view" signal and the long-lived video distribution pools (and, if the carousel is ever enabled, a separate surface) — but since Nov the video-open *score* weight is 0.0, so video is an eligibility/longevity advantage, not a scoring bonus.
 6. **If you're small (under ~50,000 followers), post launch-window content deliberately.** The cold-start boost (Oct: ≤50K followers, <200 Home-Timeline views, ≤2h old, top-97%, Thompson on; was ≤1K/<1K/24h) promotes exactly these posts — it's the one mechanism that actively rescues small accounts. (It also means the "quicksand" for tiny accounts is shallower than it feels. Note the gap it leaves: the 0-fav long-tail retrieval pool still caps at 1,000 followers, so the 1K–50K band gets the launch boost but not the tail pool.)
 7. **Avoid the penalties.** The negative weights are enormous: a *report* prediction is worth −234 (vs +20 for a copy-link share). Content that generates reports, mutes, or blocks trains the account's learned impression downhill — and that state is what determines everything else.
 8. **Don't post near-duplicates.** The diversity step actively removes posts that look like other posts already in the feed. Distinct formats and topics survive; repeated formulas get zeroed.
@@ -258,7 +258,7 @@ The honest headline: **the system's memory is a stack of different windows, and 
 Blocks and mutes still matter — through three indirect paths, none of them a counter:
 
 1. **Per-viewer, immediate, binary:** if the *viewer* blocks or mutes the author, the author's posts are removed from that viewer's feed on the spot (both directions — if the author blocks the viewer, same result). This is a filter, not a score, and it persists while the block does.
-2. **Per-viewer, learned, per-request:** the model *predicts* for each (viewer, post) pair the probability that the viewer will block, mute, or report the author. Those predictions carry the largest negative weights in the entire scoring table (report −234, mute −58.8, not-interested −43.2, block −31.2). An author whose posts routinely provoke these actions gets high predictions and low scores. How *broad* that damage is, though, is contested by the platform's own August 14th comment in the code (param.rs): it argues the predictions are personalized — reports from bad actors "will primarily affect recommendations for users who are similar to the bad actors, rather than having the same effect on the post's ranking to everyone" — that only actions on posts *served in the Home Timeline* count toward ranking (directly navigating to a post has no ranking impact), and that the baseline predicted probability of a report is more than 1,000× lower than a like, which is why the report weight is so high. The mechanism is real either way; the *scope* — author-level suppression vs. per-user suppression — is exactly the kind of thing aggregate public data cannot resolve.
+2. **Per-viewer, learned, per-request:** the model *predicts* for each (viewer, post) pair the probability that the viewer will block, mute, or report the author. Those predictions carry the largest negative weights in the entire scoring table (report −234, mute −58.8, not-interested **−53.07**, block −31.2). An author whose posts routinely provoke these actions gets high predictions and low scores. How *broad* that damage is, though, is contested by the platform's own August 14th comment in the code (param.rs): it argues the predictions are personalized — reports from bad actors "will primarily affect recommendations for users who are similar to the bad actors, rather than having the same effect on the post's ranking to everyone" — that only actions on posts *served in the Home Timeline* count toward ranking (directly navigating to a post has no ranking impact), and that the baseline predicted probability of a report is more than 1,000× lower than a like, which is why the report weight is so high. The mechanism is real either way; the *scope* — author-level suppression vs. per-user suppression — is exactly the kind of thing aggregate public data cannot resolve.
 3. **Training, permanent-until-relearned:** every actual block/mute/report/unfollow is a training example. The model is built with an explicit rule — when a "negative feedback" action occurs on a post (block, mute, report, not-interested, see-fewer, unfollow, not-relevant, mute-conversation, notification-see-less-often), the loss **zeroes all the non-negative predictions for that post** (recsys_model.py:2781-2823), making the event a hard negative. One important caveat about this mechanism: it is gated behind a flag (`mask_candidate_positive_when_negative_action_present`) that **ships disabled** — no released config turns it on (recsys_model.py:511, xrecsys.py:554-556). If production enables it, negative events are doubly potent; as shipped, negative outcomes teach through the ordinary loss instead. Over checkpoints, either way, the author's learned reputation absorbs them.
 
 So "number of times blocked" exists as *a shape in the learned reputation*, not as a number. Its persistence is the persistence of the embedding itself — which is the part of this answer that deserves emphasis:
@@ -313,12 +313,12 @@ Two separate questions hide in there — how heavy the penalty can be *per post*
 
 ### 14.1 How heavy can negative predictions weigh? (The serving-time math, now open)
 
-The scoring weights are published, and the predictions they multiply are probabilities (0 to 1) — per-viewer predicted probabilities, not raw engagement counts. The August 14th update added an explicit official clarification of this in the code itself (param.rs, ranking_scorer.rs, README): the weights "do not multiply raw engagement counts," so reading weight ratios as count equivalences — e.g. "one report cancels 468 likes" — is incorrect; the report head is weighted −234 because the *baseline probability* of a report is more than 1,000× lower than a like, not because one report outweighs 468 likes. The same compensation runs through the positive side: DM shares (5) and copy-link shares (20) are rare actions, so their weights are inflated relative to the common like (0.5) — every term contributes `weight × P(action)`, which is why "reply is 10× a like" is a weight comparison, not a value one (the platform's VP of Product popularized exactly this framing on Aug 15, 2026). That framing matters for every bound below: these are *upper bounds on a per-viewer prediction*, not a ledger of engagement counts. With that said, the bounds are staggeringly asymmetric:
+The scoring weights are published, and the predictions they multiply are probabilities (0 to 1) — per-viewer predicted probabilities, not raw engagement counts. The August 14th update added an explicit official clarification of this in the code itself (param.rs, ranking_scorer.rs, README): the weights "do not multiply raw engagement counts," so reading weight ratios as count equivalences — e.g. "one report cancels 468 likes" — is incorrect; the report head is weighted −234 because the *baseline probability* of a report is more than 1,000× lower than a like, not because one report outweighs 468 likes. The same compensation runs through the positive side: DM shares (5) and copy-link shares (20) are rare actions, so their weights are inflated relative to the common like (**0.708**) — every term contributes `weight × P(action)`, which is why "reply is ~7× a like" is a weight comparison, not a value one (the platform's VP of Product popularized exactly this framing on Aug 15, 2026). That framing matters for every bound below: these are *upper bounds on a per-viewer prediction*, not a ledger of engagement counts. With that said, the bounds are staggeringly asymmetric:
 
-- **All positive predictions at maximum confidence** (favorite + reply + repost + all shares + quote + follow + dwell-prob (0.05 since Sept) + dwell at its 30-second cap + everything, all = 1.0) sum to **≈ 43.5 points** (≈ 58.5 for a mutual-follow original post, with the +15 boost).
-- **All negative predictions at maximum confidence** (report + mute + not-interested + block + not-dwelled, all = 1.0) sum to **≈ −367.2 points**.
+- **All positive predictions at maximum confidence** (favorite + reply + repost + all shares + quote + follow + dwell-prob (0.05 since Sept) + dwell at its 30-second cap + everything, all = 1.0) sum to **≈ 43.9 points** (≈ 58.9 for a mutual-follow original post, with the +15 boost). **Nov: video-open fell to 0.0, which is why the total moved by only ~0.2 despite the reweighting.**
+- **All negative predictions at maximum confidence** (report + mute + not-interested + block + not-dwelled, all = 1.0) sum to **≈ −377.1 points**.
 
-So the negative side has **≈ 8.4× the raw weight of the entire positive side**. The single report head (−234) alone outweighs every positive prediction at full confidence. More usefully: a **~19% predicted probability of report** (−44.5) outweighs *everything* positive a post can earn. For a *given viewer*, a post the model thinks has even a one-in-five chance of being reported by that viewer is mathematically unable to win that viewer's seat, regardless of how loved it is otherwise. The platform's own commentary adds two boundary conditions: (1) these are per-viewer predictions, so the "unable to win" verdict is per-viewer — a post can be dead for viewers predicted to report it and alive for everyone else; and (2) only actions on posts *served in the Home Timeline* are counted at all (direct navigation has no ranking impact), and the model cannot be made to serve a post to a viewer who would not be predicted to see it anyway.
+So the negative side has **≈ 8.6× the raw weight of the entire positive side**. The single report head (−234) alone outweighs every positive prediction at full confidence. More usefully: a **~19% predicted probability of report** (−44.5) outweighs *everything* positive a post can earn (for a mutual-follow original the threshold rises to ~25%). For a *given viewer*, a post the model thinks has even a one-in-five chance of being reported by that viewer is mathematically unable to win that viewer's seat, regardless of how loved it is otherwise. The platform's own commentary adds two boundary conditions: (1) these are per-viewer predictions, so the "unable to win" verdict is per-viewer — a post can be dead for viewers predicted to report it and alive for everyone else; and (2) only actions on posts *served in the Home Timeline* are counted at all (direct navigation has no ranking impact), and the model cannot be made to serve a post to a viewer who would not be predicted to see it anyway.
 
 And there's a structural twist in the scoring formula that makes this even more binary. Scores are computed as *positives minus negatives*; then:
 
@@ -362,7 +362,7 @@ What the code does establish, regardless of those:
 
 ### 14.4 A correction to earlier parts of this document
 
-While verifying the math for this section, a magnitude error surfaced in Parts 11 and 13's description of dwell time. The model's dwell prediction is sigmoid-activated and de-normalized by its norm scale (30), so predicted dwell is **capped at ~30 seconds** on the For You feed surface (the gallery-page surface uses a separate tweedie head with a 300-second cap that does not feed this score), making the maximum dwell contribution to a score **≈ 0.12 points** (30 × 0.004) — less than a quarter of a like (0.5), and ~40× weaker than a reply (5.0). "Make people stay" is a real but small lever; it was previously overstated in this document and is corrected here (and in the underlying [algo-analysis.md](algo-analysis.md)). This correction *strengthens* the 14.1 asymmetry: there is no large continuous positive that could ever offset a meaningful negative prediction.
+While verifying the math for this section, a magnitude error surfaced in Parts 11 and 13's description of dwell time. The model's dwell prediction is sigmoid-activated and de-normalized by its norm scale (30), so predicted dwell is **capped at ~30 seconds** on the For You feed surface (the gallery-page surface uses a separate tweedie head with a 300-second cap that does not feed this score), making the maximum dwell contribution to a score **≈ 0.225 points** (30 × 0.0075 as of Nov; it was ≈0.12 when the weight was 0.004 and ≈0.18 at 0.006) — about a third of a like (**0.708**), and ~22× weaker than a reply (5.0). "Make people stay" is a real but modest lever; it was previously overstated in this document and is corrected here (and in the underlying [algo-analysis.md](algo-analysis.md)). The *large* continuous lever is **click-dwell (0.385)**. This correction still *strengthens* the 14.1 asymmetry: there is no large continuous positive that could ever offset a meaningful negative prediction.
 
 ---
 
@@ -471,8 +471,8 @@ The same codebase contains a genuine, content-first machinery:
 
 - **Semantic IDs (SID)**: every post gets a six-layer code that compresses its content — the layers get progressively finer, so same-topic posts share early layers (the *prefixes*). The code is derived from the post's multimedia embedding (a representation of its images, video and text together). This is literally a learned topic taxonomy, built from content, not from authors. Both the ranking model and the retrieval tower consume it.
 - **Topic feeds**: a whole parallel path — followed topics, inferred topics, topic filtering (`TopicIdsFilter`), topic-specific OON weight (0.5), and a topics candidate source.
-- **Content-type signals**: video-open, photo-expand, open-link, dwell — all content-driven heads. (**Sept**: the VQV head's weight went to 0.0 — "video watched" no longer scores directly, only via the implicit discovery signal and dwell.)
-- **Two experimental content-first retrieval models ship in the repo**: a model that *generates the next post's SID* (the prediction target is pure content — "what topic will you engage with next"; no author is predicted, though the input history still carries author tokens), and a generative-retrieval model that predicts the next post's *embedding* directly. The platform has already built content-first discovery; it just isn't the main path yet.
+- **Content-type signals**: photo-expand, open-link, dwell — all content-driven heads. (**Sept**: the VQV head's weight went to 0.0 — "video watched" no longer scores directly, only via the implicit discovery signal and dwell. **Nov: the video-open head also went to 0.0 — no format has a direct scoring bonus any more.**)
+- **Two experimental content-first retrieval models shipped in the repo until Nov 2026**: a model that *generates the next post's SID* (the prediction target is pure content — "what topic will you engage with next"; no author is predicted, though the input history still carries author tokens), and a generative-retrieval model that predicts the next post's *embedding* directly. **Both were deleted from the Nov 7 release** — the production two-tower path (plus the sid-retrieval service) is what remains. The platform had built content-first discovery experiments; they are not in the shipped code now.
 
 ### 16.3 Why the author signal is entangled — and why that's the real problem
 
@@ -747,10 +747,10 @@ A repost of your own post is the exception to everything above: the original aut
 - **The model scores the original.** The repost resolves to the original tweet id before scoring (candidate.rs:143-149), so the model sees the same post embedding, the same content, and the same author state - and post-age features are computed from the original's snowflake creation time (xai-recsys util.rs:392, 472), not the repost's. A self-repost of an old post is scored as an old post.
 - **The 48-hour filter passes the repost but the freshness features don't reset.** `AgeFilter` computes age from the candidate's own id (age_filter.rs:16-20) - the fresh repost passes - but the model still sees the original's age, at or past the worst freshness buckets.
 - **Seen filters remove it for everyone who saw the original.** PreviouslySeenPostsFilter checks the retweeted id via `related_post_ids_iter` (previously_seen_posts_filter.rs:24-30, candidates_util.rs:13-17), and RetweetDeduplicationFilter keeps only one copy of any original per request (retweet_deduplication_filter.rs:19-26) - so the repost reaches only viewers who missed the first run, and even collides with the original itself if both are candidates.
-- **It is deboosted in-network.** The 0.75 OON factor applies to reposts from followed accounts - yours included (ranking_scorer.rs:776-783). Reposting your own post prices it 25% below an original on arrival.
+- **It is deboosted in-network.** The 0.75 OON factor applies to reposts from followed accounts — yours included (then `ranking_scorer.rs`, now `xai-value-model/scoring.rs`). Reposting your own post prices it 25% below an original on arrival.
 - **The expected outcome is the original outcome.** Same predictions → the same best-predicted audience is re-served → another round of near-zero outcomes at full example weight on your row: the serving loop's second iteration. There is no second-chance mechanism - no freshness reset, no new embedding, no honeymoon, no unexplored credit for the viewers who saw it.
 - **The narrow case where it is defensible:** if the original was essentially never served (dead-hour posting, pre-audience, cold-start), the flop carries no information - and the repost does re-enter the retrieval index as a fresh id (`post_creation_1day`, 0-fav window) for 48 hours, reaching new viewers and new followers. That benefit is real but small: the model still scores the original (old-age features, your state) and the OON 0.75 still applies when it is discovered.
-- **Even then, two strictly better moves exist in the code:** a **new original** (fresh id → fresh age features, unexplored credit, cold-start eligibility if ≤1K followers, no 0.75 deboost, no dedup interaction) or a **quote of your own post** with added context (a new post, your own text, and quotes are NOT deboosted - the in-network discount applies only to replies and reposts, ranking_scorer.rs:776-783). Both beat the self-repost on every axis the pipeline exposes.
+- **Even then, two strictly better moves exist in the code:** a **new original** (fresh id → fresh age features, unexplored credit, cold-start eligibility if ≤50K followers, no 0.75 deboost, no dedup interaction) or a **quote of your own post** with added context (a new post, your own text, and quotes are NOT deboosted — the in-network discount applies only to replies and reposts, ranking_scorer.rs:776-783). Both beat the self-repost on every axis the pipeline exposes.
 - **Pattern risk:** repeated self-reposts read as mechanical reposting - the RTBot head's signature (Part 21.3's caveat applies; thresholds redacted).
 
 ---
@@ -825,7 +825,9 @@ The new commit adds comments to `param.rs`, `ranking_scorer.rs`, and the README 
 
 What this does to this document: Part 14.1's math is unchanged (it was always framed as probability bounds), but the *reading* of it must carry the per-viewer caveat — a "−44.5 report penalty" is not a subtraction from some global score; it is the per-viewer prediction weighted, and the platform's position is that a coordinated report campaign moves *similar users'* rankings, not everyone's. Part 13.2 #2 now carries this counterpoint explicitly. The 14.1 bound "a post with a 19% predicted report probability cannot win" is still correct *for that viewer*; whether it also dies for everyone else is precisely the disputed scope question, and the aggregate data cannot answer it.
 
-### 24.2 The Brazil 2026 election filter (a new hard drop rule)
+### 24.2 The Brazil 2026 election filter (a new hard drop rule — **removed Nov 7, 2026**)
+
+> **Nov 2026: the filter is deleted.** The README's October 26th update states that with the 2026 Brazilian elections over, `Brazil2026ElectionFilter` was removed from For You — "posts from the accounts it covered are no longer filtered out because of it." The description below is preserved for history and for the general lesson about jurisdiction-specific drops.
 
 `home-mixer/filters/brazil_2026_election_filter.rs` (**Oct**: **2,800** IDs, +407; README notes "Account list updated September 29, 2026"): a **pre-scoring filter** wired into the For You pipeline between `AuthorSocialgraphFilter` and `VideoFilter` (phoenix_candidate_pipeline.rs:360-369), implementing Brazilian electoral law (as announced by X on August 14th). It drops:
 
@@ -833,7 +835,7 @@ What this does to this document: Part 14.1's math is unchanged (it was always fr
 - **retweets of** and **quotes of** listed accounts
 - **replies whose conversation ancestors include** a listed account
 
-…with one exemption: **viewers who explicitly follow the listed account still see its posts** (`is_excluded_author = listed && !followed`). There is no feature switch — the filter is unconditionally in the pipeline. This is the first example in the open code of a jurisdiction-specific, legally mandated visibility rule, and it is a reminder that the "binary drops" layer (Part 0, Idea 4) can change without any change to the scoring model. (Note: the README's filter table was not updated to include it in this commit — the code has 18 pre-scoring filters, the README lists 17.)
+…with one exemption: **viewers who explicitly follow the listed account still see its posts** (`is_excluded_author = listed && !followed`). There is no feature switch — the filter was unconditionally in the pipeline while it existed. This is the first example in the open code of a jurisdiction-specific, legally mandated visibility rule, and it is a reminder that the "binary drops" layer (Part 0, Idea 4) can change without any change to the scoring model. (Note: at the time, the README's filter table had not been updated to include it — the code had 18 pre-scoring filters, the README listed 17. By Nov the code had 21 and the README had removed the Brazil row entirely.)
 
 ### 24.3 New model input features (relationship flags, and a stale-post flag)
 
@@ -872,15 +874,15 @@ Thirteen commits between Aug 17 and Sept 2 (`b089ce6`…`85ac72a`) moved the cod
 
 ### 25.3 The in-network reply/retweet deboost is gated (verified, not new)
 
-Reading the current scorer closely: the 0.75 discount hits in-network replies/reposts **only when `EnableOonRescoreForInNetworkRepliesRetweets` is on** (ranking_scorer.rs:677-687). The README states it unconditionally; prod's value is unpublished. Parts 1.A, 5.3, 6, 18, 22 updated to carry the gate.
+Reading the scorer closely: the 0.75 discount hits in-network replies/reposts **only when `EnableOonRescoreForInNetworkRepliesRetweets` is on** (then `ranking_scorer.rs:677-687`; now `xai-value-model/scoring.rs`). The README states it unconditionally; prod's value is unpublished. Parts 1.A, 5.3, 6, 18, 22 updated to carry the gate.
 
 ### 25.4 Grox blast-radius gates stepped to 120K (Aug 17–25 commits)
 
 `FOLLOWER_COUNT_THRESHOLD_FOR_SPAM_DETECTION` and `FOLLOWER_COUNT_THRESHOLD_FOR_REPLY_RANKING` (task_filter.py:17,185) stepped 30K→40K→60K→80K→100K→**120K**. The "big-thread" exemption is 4× narrower than the 30K era — the screened lane now covers everything up to 120K followers. Same commits: reply scores only move *down* (first/lowest sticks, fanned out regionally), the per-post annotation dedupe was removed (more LLM volume), the pipeline re-sourced to the v3 unified-posts topic, and reply/PTOS LLMs now see follower counts in prompt context. PTOS safety was overhauled in parallel: deluxe adult-Hard now needs safemodel+PTOS agreement (or a Grok-4.5 judge), ChildSafety fails closed to NoViolation, ViolentMedia fails soft to GraphicMedia, high-fav video safety runs a dedicated motion-reveal-gated lane (currently off — `enable_motion_reveal=False`), and a priority-post lane feeds banger scoring. Parts 19, 12.3, and the grox constants updated.
 
-### 25.5 Brazil list 665 → 2,388 (Aug 25 / 28 / Sept 1 commits)
+### 25.5 Brazil list 665 → 2,388 (Aug 25 / 28 / Sept 1 commits) — **filter removed Nov 7, 2026**
 
-The filter logic is unchanged (follower-exempt author/retweet/quote/ancestor drops, no feature switch), but the list grew 665→2,328→2,315→**2,388** (test asserts `len() == 2388`; file now 5,082 lines with an Art. 28 §1-A legal citation, "ids obfuscated" note, exclusions, and "no live account found" notes). The README's only Sept change is *"(Account list updated August 27, 2026.)"* — its 17-filter table still misses the filter entirely. Part 24.2's numbers updated.
+The filter logic is unchanged (follower-exempt author/retweet/quote/ancestor drops, no feature switch), but the list grew 665→2,328→2,315→**2,388** (test asserts `len() == 2388`; file now 5,082 lines with an Art. 28 §1-A legal citation, "ids obfuscated" note, exclusions, and "no live account found" notes). The README's only Sept change is *"(Account list updated August 27, 2026.)"* — its 17-filter table still misses the filter entirely. Part 24.2's numbers updated. **Nov 7: after the Oct 13 growth to 2,800 and the README's Sept 29 note, the whole filter was deleted once the election ended (README Oct 26).**
 
 ### 25.6 Rankall rebuilt for video (Aug 25 commit)
 
@@ -928,13 +930,199 @@ The verdict model widens from Allow/Interstitial/Drop to **Allow/Interstitial/Dr
 
 ### 26.6 Retrieval + training: reply windows, `ld` head, SID service, reply ranker
 
-Rankall Main 17→**19** with **`1fav_reply_1day` + `32fav_reply_1day`** (fav'd non-self replies get their own index + metadata dump; `MmMetadata` pipeline deleted). Retrieval gains a third **`ld` (recap-dwelled) head** (`w_ld=0.75`) alongside home/immersive, with MoL/temperature/negative-masking/query-head knobs (all off), **SID snapshots v5→v8**, and a production **SID-retrieval microservice** backing `SidSource`. Training adds a 1-layer **reply two-tower v2** ranker (history 127, SID 16 levels, focal-parent placement) plus dwell-bucket/click-dwell/web-conversion/purchase-value plumbing (purchase loss weight 0.0 = off). `FEED_MODULE_SLOTS` 4→**5** (FOR_YOU_MAX 47→**48**). Brazil 2,388→**2,800** (README: Sept 29). Enforcement: only a mock `very_high_follower_count` skip plus three **default-off guardrails** (`action_control`, `off_switch`, `overturn_hold` vs new `abuse-ledger-service`) — no live enforcement change.
+Rankall Main 17→**19** with **`1fav_reply_1day` + `32fav_reply_1day`** (fav'd non-self replies get their own index + metadata dump; `MmMetadata` pipeline deleted). Retrieval gains a third **`ld` (recap-dwelled) head** (`w_ld=0.75`) alongside home/immersive, with MoL/temperature/negative-masking/query-head knobs (all off), **SID snapshots v5→v8**, and a production **SID-retrieval microservice** backing `SidSource`. Training adds a 1-layer **reply two-tower v2** ranker (history 127, SID 16 levels, focal-parent placement) plus dwell-bucket/click-dwell/web-conversion/purchase-value plumbing (purchase loss weight 0.0 = off). `FEED_MODULE_SLOTS` 4→**5** (FOR_YOU_MAX 47→**48**). Brazil 2,388→**2,800** (README: Sept 29; **removed Nov 7** — Part 27.2). Enforcement: only a mock `very_high_follower_count` skip plus three **default-off guardrails** (`action_control`, `off_switch`, `overturn_hold` vs new `abuse-ledger-service`) — no live enforcement change.
 
 **Net effect on this document's conclusions: none overturned.** The scorer move is plumbing (same formula, new owner); the weight moves are second-decimal except click-dwell; the cold-start rewrite widens eligibility 50× but shortens the window 12× (net: more accounts get a shorter launch boost); the VF expansion adds withholding states between drop and allow without touching the scoring model; the 250K gates enlarge the screened lane without changing its direction; the reply windows refine indexing without touching the 1/32-fav gates. The mechanisms, the data, and the equilibrium story all stand.
 
 ---
 
-## Glossary - terms used in this document, in plain English
+## Part 27 — The November 7th, 2026 update: what changed and what it means
+
+Nineteen commits between October 14th and November 7th, 2026 (`3b6919f`, +95,795/−41,866 lines across 552 files). This release is mostly **machinery and governance**, not a change in what the system optimizes. But three changes are directly reach-relevant for ordinary accounts: the **video-open weight going to zero**, the **new per-source fair-share allocation**, and the **visibility-filtering rewrite** (which changes what a FOSNR label and a reaction video do to *different viewers*). The rest is off by default or operational.
+
+### 27.1 The weights moved again — and video-open went to zero
+
+The November table (`home-mixer/params/param.rs`, sync `2026-11-06`):
+
+| Action | Oct | **Nov** |
+|---|---|---|
+| Like (favorite) | 0.6 | **0.708** |
+| Click | 0.3 | **0.274** |
+| Share | 2.0 | **2.118** |
+| Dwell (per second) | 0.006 | **0.0075** |
+| Click-dwell (per second) | 0.4 | **0.385** |
+| Not interested | −47.52 | **−53.07** |
+| Video open | 0.02 | **0.0** |
+
+`react_with_video` was renamed **`post_video`** (still 0.0) and a new zero-weight **`grok_analyze`** head was added. Everything else is unchanged.
+
+**What it means.** The moves are small and roughly compensating: a like is worth a bit more (0.708), a click and a click-dwell second a bit less, sharing a bit more. The one qualitative change is **video-open: it no longer scores at all**. It had already moved 0.05→0.07 (Sept: up), then 0.07→0.02 (Oct), now 0.02→**0.0**. A video post's *ranking* advantage now comes only from (a) its structural eligibility — 6-hour/2-day/evergreen retrieval windows, and (b) the video-carousel surface if enabled (it ships off), and (c) whatever the model learns about video posts through other heads (dwell, click-dwell, video-quality-view — the last of which is also 0.0). "Post video to get boosted" is no longer supported by the scoring table; "post video because it stays eligible for years" still is (Part 2.2 / Part 9).
+
+The dwell figure is now **0.0075/s capped at ~30 s ≈ 0.225 points** — about a third of a like, still far below a reply (5.0). The like-to-reply ratio is now **~7×**, not the 10× the earlier parts described when the like weight was 0.5. **Part 14.1's bound is updated accordingly**: all positive predictions at maximum confidence sum to **≈43.9** (≈58.9 mutual), all negatives to **≈−377.1**, so the negative side is **≈8.6×** the positive side; a report probability above **~19%** still outweighs everything positive for that viewer (≈25% for a mutual-follow original).
+
+As in October, the server copy (`vm-ranker/params.rs`) still ships the *old* numbers (favorite 0.5, video_open 0.07, cont_dwell 0.004, not-interested −47.52). Which copy wins at runtime is a production-configuration question we cannot see from the repo.
+
+### 27.2 The Brazil election filter is gone
+
+`Brazil2026ElectionFilter` — the hardcoded 2,800-ID Electoral-Court filter added August 14th and grown twice — is **deleted**. The README's October 26th note explains: the 2026 Brazilian elections are over, so posts from those accounts are no longer filtered because of it. The lesson from Part 24.2 survives even though the rule does not: jurisdiction-specific, legally mandated drops can appear and disappear without any change to the scoring model. For the accounts that were on the list, this is a real (if narrow) reach restoration — but only for that one legal reason; every other filter still applies.
+
+### 27.3 Fair-share allocation: the quiet source-level change (on by default)
+
+The most consequential *new* mechanism for discovery reach is easy to miss because it is not a score and not a drop. **`FairShareRankingFilter`** (on by default) runs last among the pre-scoring filters and trims the combined candidate pool to the **2,800-candidate Phoenix budget** by **proportional fair share per retrieval source** (`ServedType`), using a largest-remainder allocation.
+
+Why this matters: the pipeline gathers Thunder (~1,200) + PopularPosts (~500) + TweetMixer (~800) + Simclusters (~800) + Phoenix retrieval (~1,000) + Topics (~1,000) + MoE + SID + cache — well over 2,800 before scoring. `PhoenixScorer` then sends the **first** 2,800 in pool order. Under the old first-N behavior, the early sources alone could fill the budget and the discovery sources could be truncated out of the scored set entirely. Fair-share keeps roughly the same *fraction* of every source, so a post retrieved by Phoenix/topics/MoE/SID is now much more likely to be scored at all.
+
+For you: if your post only reached the out-of-network layer, this raises the chance it gets a score (and therefore a seat) instead of being silently cut at the source-merge stage. It does not change the 0.75 OON discount or the per-viewer prediction — it changes whether the prediction happens. It is skipped for cached-post requests and when the Phoenix ranker kill switch is on.
+
+### 27.4 Two new filters (both off)
+
+- **`ZeroFavCodivertFilter`** (2nd in the pipeline, off): a treatment/control experiment over **zero-favorite Phoenix-retrieval posts**, bucketed by *viewer* and by *author* (`ViewerZeroFavCodivertIsTreatment`, `AuthorZeroFavCodivertIsTreatment/Control`). The filter only runs when the **viewer** is in treatment; it then keeps zero-fav-only candidates whose **author** is also in treatment and drops the rest (author control/unbucketed). Non-zero-fav posts are untouched. If production enables a treatment arm, it directly changes whether brand-new posts with no favorites can be discovered out-of-network — a potentially large small-account lever. As shipped, every arm is false.
+- **`NewUserSoftNsfwFilter`** (4th, off): for viewers whose account is **<7 days old** and who have **<100 actions**, drops out-of-network posts carrying the new **`SOFT_NSFW`** label. This is the first filter keyed on *scoring-sequence length* (a behavioural "newness" proxy) rather than account age alone, and it pairs with a VF rule (Part 27.6) and a DDG experiment (`soft_nsfw_ddg_1`).
+
+Neither changes reach for established accounts as shipped.
+
+### 27.5 The video carousel grew up (still off by default)
+
+The carousel (`EnableVideoCarousel=false`) was rebuilt around a **separate scoring model**: immersive Phoenix scores (cluster `Experiment3Fou`, aggregation `IMMERSIVE_LONG_DWELL`) blended with video-open, weighted score, and video-continuation; an optional **CTR model** served by vm-ranker (`lr_v8_search_video_1_2026-11-03_no_high_risk`, served via the new `GetCarouselModel` RPC); **v8-search embedding dedupe** at cosine ≥0.72; **media-id and MD5 dedupe against the main feed** (so a carousel video can't repeat a video already in the posts above it); brand-safety filtering (**high-risk dropped** by default, medium-risk optional); and a Redis **seen-carousel** cache so the same video isn't carouseled twice. The extras are now chosen by the carousel score, and the whole module is suppressed when a "Who to Follow" box is present.
+
+If it is ever turned on, the carousel is a second distribution surface for video with its own ranker and its own dedupe — but as shipped it adds nothing to reach.
+
+### 27.6 Visibility filtering became an action model — the biggest user-visible change
+
+The VF engine was rewritten from a severity-sorted rule list into a **fold over typed actions**. There are now **7 action kinds** — `Drop`, `Tombstone`, **`Appealable`**, **`SoftIntervention`**, **`LabelInterstitial`**, **`MediaRestriction`**, **`LimitedEngagement`** — and **9 safety levels** (adding promoted-ad hydration, immersive gallery recommendations, quoted-tweet rules, and two notification levels). Three consequences matter for reach:
+
+1. **FOSNR is now follower-tiered.** For `FOSNR_ABUSE_INSULTS`, **non-followers get a drop**, **followers get a soft intervention** (the post is shown with a notice and a limited action set), and the **author** sees an `Appealable` notice with the policy and the actions they can still take (the level-3 limited-action list; only `EditTweet` for abuse-insults). The same rules are gated by a **client app/version switch** (`freedom_of_speech_not_reach_rules_enabled`), so old clients can behave differently from new ones.
+2. **Reaction videos inherit media treatment.** A video that *reacts to* a post labeled adult or gore is **blurred** for everyone (a sensitivity/violence interstitial), and if the reacted-to author is **protected**, the reaction is **dropped**. The rules are attached to the hydration/promoted-hydration passes, so they apply to the hydrated feed path rather than the plain TimelineHome rule set. This is a new propagation path from the original post's labels to a derivative video — the first "quote/reaction-adjacent" media rule of its kind in the feed path.
+3. **`SOFT_NSFW`** is a new label with a **new-viewer drop** (subject to the DDG experiment and client switch), and **label interstitials** can now be **public-interest notices** (with a limited-engagement reason) or **emergency dynamic copy** (custom text + link).
+
+Also new: notifications are filtered by kind (follow, like/repost, mention, reply, media tag), and quotes can be run through a separate **quote pass** (`VF_QUOTE_PASS=off|shadow`) that rerenders eight quoted-author rules instead of reusing the outer verdict. The rule count grew to **117 post rules / 38 user rules** (from 107/21), the golden corpus to **25 files**, and label storage moved to a shared **`safety-label-source/`** crate (in-process cache + dragonfly + Manhattan fallback + warmer).
+
+**What it means for you.** The binary-drop model in Part 0 (Idea 4) is now a *tiered* model: "dropped for non-followers but shown to followers with a notice" is now an explicit state for FOSNR abuse-insults, and "blurred because of what the video reacts to" is a new state for reaction content. If you post reactions to sensitive media, your video can be blurred even if your own post carries no label. If you have followers, some labels that used to withhold the post from everyone may now only add a notice for them.
+
+### 27.7 Page-level RL and user-debias (both off)
+
+Two new ranking mechanisms ship disabled:
+
+- **Page-level RL** (`EnablePageDecodeRerank`, `EnablePageRlExploration`): the Phoenix model can return a *decoded page* (slot picks), and home-mixer can either apply those picks directly (`PageDecodeRerankScorer`) or explore around them with Plackett–Luce sampling over the top-64 scores at T=0.2 (`PageRlExplorationScorer`). Training code ships (`page_decoder`, `page_critic`, `page_rl`; reward = dwell/engagement/completion with γ=0.8). If enabled, this is a move from independent per-post scoring to *page-aware* selection — the first such mechanism in the open code.
+- **User-debias** (`UserDebiasEnabled=false`, α=0.0): recenters 14 head probabilities toward a global baseline using the viewer's own action sequence, then recomputes the value model. It is a *calibration* layer, not a new objective: the point is to make a heavy-liker's like probability comparable to a light-liker's before weighting.
+
+Both are interesting architecture; neither affects reach as shipped.
+
+### 27.8 Model, enforcement, and transparency plumbing
+
+- **Ranking model** (`home_direct_packed`): now uses **time-gap features** (19 log-spaced buckets telling the model how long ago each history event happened, lr ×4), **home-excursion history** (log-normalized video-continuation and profile-visit seconds on history tokens), **2 candidate-only layers**, **FP8 GEMMs**, and a **0.5-weight view head**; the UAS aggregation is now `DENSE_WITH_LONG_DWELL_HOME_EXCURSION` and `EnableHomeExcursionScores=true`. The excursion heads exist in the score input but still carry **0.0 weight**, so this is a *learned-representation* change, not a new lever. This release also deletes two model families described in Oct: **gen-recs and SID-retrieval model code are gone** (the sid-retrieval *service* and `SidSource` remain).
+- **Retrieval**: a new `home`+`ld`-only two-tower config narrows read-through to the home surface; the embedding LR doubles to 0.2; ad objective heads and ID-list features are added (ads-facing); a new `IMMERSIVE_32FAV_VIDEO_14_TO_30_DAY` dataset and `video_6h`/`video_6hto2day` SID windows refine video freshness.
+- **Enforcement**: adds a **confidence/evidence model**, **head guards** (per-head or head+classifier hourly/daily action ceilings that trip that scope's off switch — a circuit breaker above the existing 500K/day cap), **backfill runs** over past decisions, and new `bb1_*` bot-label rules; removes the `inauthentic_detection_v45` and `cluster_spam` rule families and the mock `very_high_follower_count` skip; cuts the `llm_slop` SpamHighRecall TTL from 30 days to **7 days**.
+- **Under the Hood**: the transparency report now shows the **top-3 weighted-score contributions** per post (head, contribution, share ≥10%) instead of a raw head-score dump, plus **appeal text** (per-label, per-country forms) and, behind a switch, the **post IDs** behind each label aggregate.
+
+### 27.9 Net effect on this document's conclusions: still none overturned
+
+The November release tightens the same machine rather than replacing it. The weight moves are second-decimal except **video-open → 0.0** (which removes the last direct format bonus from scoring); the Brazil removal restores reach for one legally-defined set of accounts; fair-share allocation changes *which sources get scored*, not how any post is scored; the two new filters are off; the carousel is off; page-RL and user-debias are off. The one change with real, broad user-visible consequence is the **VF action model** — because it changes what different *viewers* see for the same labeled post (followers vs non-followers, old vs new clients, reaction videos vs originals). The equilibrium story — per-viewer prediction, learned author state, favorite-gated discovery, follower seed — is unchanged.
+
+---
+
+## Part 28 — The November 19th, 2026 update: what changed and what it means
+
+Eight commits between November 10th and 19th (`b551517`, +30,960/−13,930 lines across 346 files). This is the quietest release since August for ranking: **no scoring weight moved**, no filter was added or removed, and no home-mixer retrieval source changed. Most of the diff is plumbing. Three changes are worth an ordinary account's attention — ad-slot placement, a new AI-video labeling/indexing path, and a new class of post-label enforcement actions. The rest ships off or is invisible.
+
+### 28.1 The weights did not move
+
+The `2026-11-18` parameter sync changes only non-weight parameters. Every value in Part 27.1 is still current: favorite **0.708**, click **0.274**, share **2.118**, dwell **0.0075**/s, click-dwell **0.385**/s, not-interested **−53.07**, video-open **0.0**. A reply is still ~7× a like; the negative side is still ~8.6× the positive side at maximum confidence.
+
+Three new scoring mechanisms ship **off**:
+
+- **A multiplicative value model** (`ValueModelMode="multiplicative"`): instead of adding the weighted terms, the score becomes `skip × engage × time`, where `skip` is a power of the predicted not-dwelled probability, `engage` is the weighted sum minus the dwell terms, and `time` grows with predicted dwell. A negative engagement sum falls back to the additive floor. This is a different *shape* of objective — it makes a post's score collapse if the model expects a skip, rather than subtracting a fixed penalty — but it is inert at the default `"weighted"`.
+- **Per-class factors** that could weight a candidate's engagement terms and dwell terms separately for out-of-network vs in-network (all four parameters are −1.0 sentinels).
+- **A DPP sliding window** that would penalize each pick against the previous N picks and the viewer's 10-minute served history, with a SID-overlap term (window 0, SID λ 0.0, greedy-order false).
+
+None of these is a lever you can use today. They are the shape of the next experiment, not the current ranking.
+
+### 28.2 Ad slots changed, and organic positions move with them
+
+The default ads blender changed from **`multi_risk` to `slot_spread`**, and slot-spread now consults a new `UserAdLoad` that can thin ad slots by the viewer's "user state" (new / light / medium / heavy, tweeter vs non-tweeter) and by the page's mean score tier. As shipped, the keep-rate and spacing lists are empty, so no thinning occurs — but the *default algorithm* is different, and ad placement is what determines how many organic slots exist and where they sit.
+
+**What it means.** Your post's score did not change. Its *position* can still change, because an ad moved. Do not read a small impression shift in this window as a scoring change; the organic ranker was not retuned.
+
+### 28.3 `DO_NOT_AMPLIFY` and `MALICIOUS_URL` audiences were cleaned up (no feed change)
+
+Both rules changed audience from **`NonAuthors`** to **`NonFollowers`**. That looks like a reach change, but it is not one today: both rules are listed only in the out-of-network recommendation and immersive rule sets, where the candidate is not from an account the viewer follows — so every viewer is already a non-follower. The change is a semantic correction that matters if the rules are ever reused on a surface that includes followers. Non-followers still get `Drop(PossiblyUndesirable)`, and neither post becomes eligible for out-of-network recommendation.
+
+### 28.4 Notifications and retweet verdicts were tightened
+
+Notification filtering is now per kind and materially broader:
+
+- **Replies** use the same rule list as **mentions** (including the muted-keyword drop).
+- **Media-tagged** notifications gain `SPAM_HIGH_RECALL_OON` and `RISKY_HIGH_VIZ_REPLY` drops.
+- **Quote** notifications get their own pass over the quoted/quoting post; like/repost notifications now also judge the **retweet's source**, not just the recipient post.
+- A notification-muted-keyword rule can drop a mention/reply when the viewer's *notification* mute settings match, with an "excluding followed accounts" partition.
+- When a like/repost's recipient post fails to evaluate, an **actor-level drop now wins** instead of the failed recipient result.
+
+Separately, **merged retweet/source verdicts now pick the higher-severity withholding action** rather than the old drop-vs-tombstone special case. So a retweet can inherit a harsher verdict than before when the source and the retweet carry different withholding actions.
+
+**One transparency regression:** `FilterTweets` responses no longer include the per-post `safety_labels` map (the hydrated-tweet label field is always empty). The verdicts are unaffected; only the returned diagnostic map is gone.
+
+### 28.5 AI video is now labeled and indexed
+
+`phoenixRankAllCandidateProcessor.strato` reads the post's **content-disclosure** field and classifies immersive videos as:
+
+- **`ai_video_self`** — the user declared the content as AI-generated; or
+- **`ai_video_detected`** — C2PA provenance, a Grok signature, or an agent-applied disclosure.
+
+A repost inherits the source post's AI-video index. Rankall adds six new **Sid** windows — `ai_video_self` and `ai_video_detected` at 24 h, 48 h, and 7 days — and compaction removes any post from those windows if it appears in any `nsfw_video` window. There is also an `ai_video_model` annotation index (from `aiGeneratedVideoAnnotationsMh`) that is emitted but not consumed by rankall.
+
+**What it means today:** little. Rankall's Sid pipeline maintains the windows, but the retrieval source that would read them (`SidSource`) still ships off, and no training config selects the new AI-video corpora. But the platform is now building a separate retrieval pool and training corpus for declared/detected AI video — a new provenance-based retrieval slice in the open code. If you post AI video, detection can tag it even without your disclosure; if you repost someone else's AI video, you inherit their tag.
+
+### 28.6 Enforcement can now apply post labels from a page
+
+The abuse service gained a **post-label page path**: 12 actions covering `NsfaHighPrecision`, `NsfaLimitedInventory`, `NsfwHighPrecision`, and `SoftNsfw`, each with 7-day, 30-day, and permanent variants. Before writing, the service reads the post's existing labels and **skips as `already_post_labeled`** when every requested label is already carried at least as long; dedup keys now include the label set. Every `AddPostLabelsV2` carries a `source` field.
+
+Two operational changes matter for appeals and automation:
+
+- **Test accounts are skipped** for account-ending actions: `TestUserStatus` Temporary/Permanent, plus accounts matching configured roles, confirmed e-mail domains, or creation-IP CIDRs. The lists default empty, but the `TestUserStatus` check is live.
+- **`follower_threshold: 0` no longer means "off."** It is stored as the ceiling−1 (**12,345**, ceiling 12,346); raising a limit to the ceiling requires an exact `confirm_follower_limit` plus a typed confirmation. The action-control record format moved **v6→v9**, so older service images cannot read new records.
+
+**What it means.** Post labels are becoming a first-class, deduplicated enforcement action rather than a side effect of a user-level rule. `SoftNsfw` is the same label the VF new-viewer rule reads, so a page action can now feed that path directly.
+
+### 28.7 Grox: more media reviewed, and engagement-bait categories split from spam
+
+Two moderation changes:
+
+- **Many-media PTOS.** A post with more than four images (own or quoted) is chunked into 4-image batches and passed through the full PTOS pipeline (category → policy → safety model → adult cross-validation). It is eligible only when the post has **≥256 favorites** or a **prior adult-content violation**, and posts already marked NSFW are skipped. This is more safety coverage for image-heavy posts, not a ranking signal.
+- **Spam policy split.** `SpamPromotesClicks`, `SpamPromotesReplies`, and `SpamPromotesShares` are now distinct. Only **PromotesShares** writes `SpamHighRecall`; Clicks and Replies write the new `PromotesClicks`/`PromotesReplies` labels with **no spam label**. Previously any non-`NoViolation` spam policy from a non-high-PR author could produce `SpamHighRecall`.
+
+Also: the high-page-rank lookup is now cached for **30 minutes**, so the spam-label exemption can be up to half an hour stale. `is_pasted` and the reply-spam flow are unchanged.
+
+### 28.8 Phoenix: an input-shape change, a stricter dwell label, and a standalone critic
+
+- **Post int64 features grew 17→22** with six DPA-SID slots (levels 0–5, 256 codes each). The embedding is off (`enable_dpa_sid_feat=false`), but the model runner sizes inputs from the feature enum, so **every ranking checkpoint must be retrained or migrated** to the new shape. This is the kind of change that forces a full model rollout even when nothing in the objective moved.
+- **`xrecsys_two_tower_home_only` now sets `ld_label_exclude_clicks=true`.** For the recall-dwelled (`ld`) head, a click-only dwell no longer counts unless the row also has a video-quality view or **≥10 seconds of dwell plus a qualifying non-click action**. The retrieval model's notion of "dwelled" is now stricter — it is learning from reading, not from click-and-idle.
+- **`page_critic_only.py`** adds a standalone 2-layer critic with a Gumbel-top-k decoder and a TD-λ loss; it can be selected as the page-decode `serve_decode="critic"` mode, but the default remains `"actor"`.
+- **Long-term author profile** reader, recent-positive history scaling, ad-side-id embeddings, and per-request CREAD decode parameters all ship unused/off.
+
+Two plumbing notes: Phoenix prediction calls now request **candidate ids only** (`return_candidate_tweet_id_only=true`), and production requests stop retaining the fetched-candidate vector (debug requests keep it). Neither changes a score; they cut memory and network payload.
+
+### 28.9 Teacher scores, and a little less label transparency
+
+A new **teacher-score side effect ships on** (`EnableTeacherScoreSideEffect=true`): on production For-You requests, home-mixer writes the served posts' 21 configured action probabilities to a Redis teacher cache (TTL 3,000 s = 50 minutes), keyed by prediction request id. It is not read by the ranker. The name and shape strongly suggest a distillation/analysis feed — served-model scores captured as "teacher" targets — but the consumer is outside the repo.
+
+The **Under-the-Hood frame** (a Jetfuel card rendered from the pipeline trace) ships off. The `FilterTweets` safety-label map loss is described in 28.4.
+
+### 28.10 Net effect on this document's conclusions: still none overturned
+
+The November 19 release does not retune the machine. The score formula, the weights, the 21 filters, the nine sources, and the per-viewer prediction are all where they were on November 7. What moved is around the edges:
+
+- **Ad slots** changed algorithm (organic positions can shift without a scoring change).
+- **Two OON rule audiences** (`DO_NOT_AMPLIFY`, `MALICIOUS_URL`) were cleaned up from non-authors to non-followers (no feed effect today).
+- **AI video** became a labeled, indexed content class (no live ranking effect yet).
+- **Post-label enforcement** became a deduplicated page action with test-account and follower-threshold guardrails.
+- **Notification filtering** got more precise (source-aware, quote-aware, muted-keyword-aware).
+- **Phoenix** changed input shape and tightened the `ld` dwell label.
+
+The equilibrium story — favorite-gated discovery, follower-seeded candidacy, per-viewer prediction, learned author state, and a separate visibility gate — is unchanged.
+
+---
+
+## Glossary — terms used in this document, in plain English
 
 The document deliberately uses the platform's own terminology where the code does. This glossary defines every technical term used here, without assuming knowledge of X or of recommendation-system code.
 
@@ -994,7 +1182,7 @@ The article's anomalies are real, its data is reproducible, and its skepticism i
 
 Whether that system is wise, fair, or good for public discourse is a separate question — and the code's answer to that question is: it was not designed with that question in mind.
 
-*Current as of the Oct 13, 2026 tree (commit `e1a0375`); Part 26 collects the October changes.*
+*Current as of the Nov 19, 2026 tree (commit `b551517`); Part 26 collects the October changes, Part 27 the Nov 7 release, and Part 28 the Nov 19 release.*
 
-<!-- REVIEW-BASELINE-FOOTER rev=e1a0375a903899984545c663bb0bccb3cdcdf046 short=e1a0375 date=2026-10-13T08:05:54Z -->
+<!-- REVIEW-BASELINE-FOOTER rev=b55151777cd8901111c7b5985a724f671f05d2c4 short=b551517 date=2026-11-19T03:57:33Z -->
 
